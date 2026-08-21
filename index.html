@@ -3,20 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>종합도매 매출 Control Tower</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=11" />
 </head>
 <body>
   <header class="topbar">
     <div>
       <div class="eyebrow">SCM SALES CONTROL TOWER</div>
       <h1>종합도매 매출 · MBO 예측 대시보드</h1>
-      <p>월별 마감, 일자별 순도, 업체/담당자/제품 매출 추이를 한 화면에서 관리합니다.</p>
-    </div>
-    <div class="header-actions">
-      <button id="backupBtn" class="ghost">JSON 백업</button>
-      <label class="ghost file-label">백업 불러오기<input id="restoreInput" type="file" accept=".json" hidden></label>
-      <button id="resetBtn" class="ghost danger">초기 데이터 복원</button>
+      <p>월별 매출, 일자별 순도, 수금내역서 발행일과 영업일 패턴을 함께 반영합니다.</p>
     </div>
   </header>
 
@@ -25,98 +21,63 @@
       <div class="control-grid">
         <label>담당자<select id="managerFilter"><option value="ALL">전체</option></select></label>
         <label>업체<select id="vendorFilter"><option value="ALL">전체</option></select></label>
-        <label>기준월<select id="monthFilter"></select></label>
-        <label>월 MBO 목표(억)<input id="mboInput" type="number" min="0" step="0.1" /></label>
-        <label>수금내역서 1차 발행일<input id="collection1Input" type="date" /></label>
-        <label>수금내역서 2차 발행일<input id="collection2Input" type="date" /></label>
-        <label>추가 휴무일<input id="customHolidayInput" type="text" placeholder="예: 2026-09-29, 9/30" /></label>
+        <label>기준월<select id="monthFilter"><option value="2026-08">2026.08</option></select></label>
+        <label>월 MBO 목표(억)<input id="mboInput" type="number" min="0" step="0.1" placeholder="매월 직접 입력" /></label>
+        <label>수금내역서 1차 발행일<input id="collection1Input" type="date" value="2026-08-20" /></label>
+        <label>수금내역서 2차 발행일<input id="collection2Input" type="date" value="2026-08-25" /></label>
+        <label>추가 휴무일<input id="customHolidayInput" type="text" placeholder="예: 2026-09-29, 2026-09-30" /></label>
       </div>
       <div class="upload-grid">
-        <label class="upload-card">
-          <span class="upload-title">월별 EXPORT 업데이트</span>
-          <span>첫 열이 <b>년월</b>인 EXPORT 파일. 같은 월 재업로드 시 해당 월 상세 데이터를 교체합니다.</span>
-          <input id="monthlyUpload" type="file" accept=".xlsx,.xls" multiple />
-        </label>
-        <label class="upload-card">
-          <span class="upload-title">일자별 EXPORT 업데이트</span>
-          <span>첫 열이 <b>일자</b>인 EXPORT 파일. 일자별 누계·순도·예측에 반영됩니다.</span>
-          <input id="dailyUpload" type="file" accept=".xlsx,.xls" multiple />
-        </label>
+        <label class="upload-card"><span class="upload-title">월별 EXPORT 업데이트</span><span>같은 월 재업로드 시 해당 월 데이터를 교체합니다.</span><input id="monthlyUpload" type="file" accept=".xlsx,.xls" /></label>
+        <label class="upload-card"><span class="upload-title">일자별 EXPORT 업데이트</span><span>일자별 누계·수금 이벤트 예측에 반영됩니다.</span><input id="dailyUpload" type="file" accept=".xlsx,.xls" /></label>
       </div>
-      <div id="calendarInfo" class="status"></div>
-      <div id="status" class="status">초기 데이터: 2026-08-21 기준 · 브라우저 내부에서만 처리됩니다.</div>
+      <div id="calendarInfo" class="status">영업일 계산 및 수금내역서 발행일 패턴 로딩 중...</div>
+      <div id="status" class="status">초기 데이터: 2026-08-21 기준</div>
     </section>
 
     <section class="hero panel">
-      <div>
-        <div class="eyebrow">MONTHLY RUN RATE</div>
-        <h2 id="heroTitle">2026년 8월 매출 진행 현황</h2>
-        <p id="heroNote">공휴일을 제외한 영업일과 수금내역서 1·2차 발행 전후 패턴을 함께 학습해 예측합니다.</p>
-      </div>
+      <div><div class="eyebrow">MONTHLY RUN RATE</div><h2 id="heroTitle">2026년 8월 매출 진행 현황</h2><p>예상마감은 실제 매출 진행 패턴으로 계산하며, MBO 관련 지표는 입력값에 따라 즉시 재계산됩니다.</p></div>
       <div class="hero-badge" id="asOfBadge">8/21 기준</div>
     </section>
 
-    <section class="kpi-grid" id="kpiGrid"></section>
-
-    <section class="grid-2">
-      <article class="panel chart-card">
-        <div class="section-head"><div><h3>월별 매출 변화 추이</h3><p>전체/선택업체 실적과 MBO 목표</p></div></div>
-        <canvas id="monthlyChart"></canvas>
-      </article>
-      <article class="panel chart-card">
-        <div class="section-head"><div><h3>일자별 누계 · 순도</h3><p>기준일 기대 누계 대비 실제 누계</p></div></div>
-        <canvas id="dailyChart"></canvas>
-      </article>
-    </section>
-
-    <section class="grid-2">
-      <article class="panel chart-card">
-        <div class="section-head"><div><h3>제품군 매출 TOP 10</h3><p>제품계층구조2 명 기준</p></div></div>
-        <canvas id="productGroupChart"></canvas>
-      </article>
-      <article class="panel chart-card">
-        <div class="section-head"><div><h3>자재명 매출 TOP 10</h3><p>현재 선택 범위 내 품목 집중도</p></div></div>
-        <canvas id="materialChart"></canvas>
-      </article>
+    <section class="kpi-grid" id="kpiGrid">
+      <article class="kpi good"><div class="label">현재 누계</div><div class="value">114.2억</div><div class="sub">2026-08-21 기준</div></article>
+      <article class="kpi warn"><div class="label">MBO 목표</div><div class="value">입력 필요</div><div class="sub">월별 직접 입력</div></article>
+      <article class="kpi good"><div class="label">예상 마감</div><div class="value">계산 중</div><div class="sub">수금 이벤트·영업일 패턴</div></article>
+      <article class="kpi warn"><div class="label">순도</div><div class="value">MBO 입력 필요</div><div class="sub">실제 누계 ÷ 필요 누계</div></article>
+      <article class="kpi info"><div class="label">예측 진행률</div><div class="value">계산 중</div><div class="sub">4~7월 수금 이벤트 학습</div></article>
+      <article class="kpi"><div class="label">MBO 예상 GAP</div><div class="value">MBO 입력 필요</div><div class="sub">예상마감 - MBO</div></article>
+      <article class="kpi"><div class="label">MBO 잔여액</div><div class="value">MBO 입력 필요</div><div class="sub">현재누계 기준</div></article>
+      <article class="kpi"><div class="label">잔여 영업일 일평균 필요</div><div class="value">MBO 입력 필요</div><div class="sub">목표 변경 시 자동 계산</div></article>
     </section>
 
     <section class="panel">
-      <div class="section-head">
-        <div><h3>업체별 월 매출 · MBO 예상</h3><p>권역, 담당자, 전월 실적, 당월 현수준, 예상 마감, 배분 목표를 억 단위로 확인합니다.</p></div>
-        <button id="vendorCsvBtn" class="small">CSV 다운로드</button>
-      </div>
-      <div class="table-wrap"><table id="vendorTable"></table></div>
+      <div class="section-head"><div><h3>업체별 월 매출 · 예상</h3><p>전월, 당월 누계, 예상마감, 월 MBO 입력값에 따른 배분 목표를 확인합니다.</p></div></div>
+      <div class="table-wrap"><table id="vendorTable"><tbody><tr><td>데이터 계산 중...</td></tr></tbody></table></div>
     </section>
 
     <section class="grid-2">
-      <article class="panel">
-        <div class="section-head"><div><h3>일자별 필요 매출</h3><p>순도 = 실제 누계 ÷ 기준일 필요 누계</p></div></div>
-        <div class="table-wrap compact"><table id="dailyTable"></table></div>
-      </article>
-      <article class="panel">
-        <div class="section-head"><div><h3>제품 믹스 상세</h3><p>제품군/자재별 매출 및 비중</p></div></div>
-        <div class="table-wrap compact"><table id="productTable"></table></div>
-      </article>
+      <article class="panel"><div class="section-head"><div><h3>일자별 필요 매출 · 순도</h3><p>MBO 입력 후 기준일 필요누계와 순도가 자동 계산됩니다.</p></div></div><div class="table-wrap compact"><table id="dailyTable"><tbody><tr><td>일자별 데이터 계산 중...</td></tr></tbody></table></div></article>
+      <article class="panel"><div class="section-head"><div><h3>제품 믹스 상세</h3><p>제품군별 매출과 비중</p></div></div><div class="table-wrap compact"><table id="productTable"><tbody><tr><td>제품 데이터 계산 중...</td></tr></tbody></table></div></article>
     </section>
 
     <section class="panel logic-note">
-      <h3>예측 로직</h3>
+      <h3>계산 원칙</h3>
       <div class="logic-grid">
-        <div><b>예상 마감</b><span>현재 누계 ÷ 이벤트 정렬 기대 진행률</span></div>
-        <div><b>기준일 필요 누계</b><span>MBO × 수금 이벤트·영업일 기대 진행률</span></div>
-        <div><b>순도</b><span>현재 누계 ÷ 기준일 필요 누계 × 100</span></div>
-        <div><b>업체별 목표</b><span>전월 매출 비중으로 전체 MBO를 배분</span></div>
+        <div><b>예상 마감</b><span>현재 누계 ÷ 수금 이벤트 정렬 기대 진행률</span></div>
+        <div><b>MBO</b><span>매월 사용자가 직접 입력·수정</span></div>
+        <div><b>순도</b><span>현재 누계 ÷ (입력 MBO × 기대 진행률)</span></div>
+        <div><b>MBO GAP</b><span>예상 마감 − 입력 MBO</span></div>
       </div>
-      <p>예측은 월을 ① 1차 수금내역서 발행 전, ② 1차~2차 사이, ③ 2차 발행 후의 3구간으로 나누고, 과거 월에서 동일 구간·동일 영업일 위치의 누계율을 찾아 평균합니다. 주말과 공휴일/대체공휴일은 영업일에서 제외하며, 추가 휴무일도 월별로 입력할 수 있습니다. 9월부터는 매월 1·2차 발행일을 직접 입력하면 즉시 예측선에 반영됩니다.</p>
+      <p>MBO는 더 이상 269.4억으로 고정하지 않습니다. 기준월마다 직접 입력한 값을 브라우저에 저장하며, 값이 변경되면 순도·필요누계·GAP·잔여액·일평균 필요매출·업체별 배분 목표가 즉시 재계산됩니다.</p>
     </section>
   </main>
 
-  <footer>GitHub Pages 정적 배포용 · 데이터는 사용자의 브라우저에 저장되며 별도 서버로 전송하지 않습니다.</footer>
+  <footer>GitHub Pages 정적 배포용 · 입력한 MBO와 발행일 설정은 해당 브라우저에 저장됩니다.</footer>
 
-  <script src="fast-core.js"></script>
-  <script src="fast-daily-total.js"></script>
-  <script src="app.js"></script>
+  <script src="fast-core.js?v=11"></script>
+  <script src="fast-daily-total.js?v=11"></script>
+  <script src="app_v11.js?v=11"></script>
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </body>
 </html>
