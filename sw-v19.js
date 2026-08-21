@@ -1,5 +1,5 @@
-const CACHE='sales-forecast-static-v19';
-const STATIC=['./v16.js','./export-v19.js','./data.js'];
+const CACHE='sales-forecast-static-v20';
+const STATIC=['./v16.js','./export-v19.js','./export-v18.js','./decouple-v20.js','./data.js'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC)).catch(()=>{}));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('sales-forecast-static-')&&k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
-self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;if(!STATIC.some(p=>u.pathname.endsWith(p.replace('./',''))))return;e.respondWith(caches.match(e.request).then(cached=>{const fresh=fetch(e.request).then(r=>{if(r&&r.ok)caches.open(CACHE).then(c=>c.put(e.request,r.clone()));return r}).catch(()=>cached);return cached||fresh}))});
+self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;if(!STATIC.some(p=>u.pathname.endsWith(p.replace('./',''))))return;e.respondWith(fetch(e.request).then(r=>{if(r&&r.ok)caches.open(CACHE).then(c=>c.put(e.request,r.clone()));return r}).catch(()=>caches.match(e.request)))});
