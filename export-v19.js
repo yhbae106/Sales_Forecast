@@ -1,1 +1,1 @@
-(()=>{'use strict';const load=(src,cb)=>{const s=document.createElement('script');s.src=src;s.defer=true;s.onload=()=>cb&&cb();document.body.appendChild(s)};load('export-v18.js?v=20',()=>load('decouple-v20.js?v=20'))})();
+(()=>{'use strict';const load=(src,cb)=>{const s=document.createElement('script');s.src=src;s.defer=true;s.onload=()=>cb&&cb();document.body.appendChild(s)};load('export-v21.js?v=21',()=>load('decouple-v21.js?v=21',()=>{if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw-v21.js',{scope:'./'}).catch(()=>{})}))})();
