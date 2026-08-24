@@ -1,7 +1,10 @@
 (()=>{'use strict';
+const STORE='sales_forecast_v16',RAW='https://raw.githubusercontent.com/yhbae106/Sales_Forecast/main/shared-data/sales-history.json';
 const setBrand=()=>{const e=document.querySelector('.eyebrow'),h=document.querySelector('.top h1');if(e)e.textContent='SCM SALES Forecast CONTROL TOWER';if(h)h.textContent='종합도매 매출 · MBO 운영 대시보드';document.title='SCM SALES Forecast CONTROL TOWER | 종합도매 매출 · MBO 운영 대시보드'};
+const status=m=>{const e=document.getElementById('status');if(e)e.textContent=m};
 setBrand();
 try{if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('sales-forecast-static-')).map(k=>caches.delete(k)))).catch(()=>{})}catch(e){}
 const load=src=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.async=false;s.onload=resolve;s.onerror=()=>reject(new Error(src+' 로드 실패'));document.body.appendChild(s)});
-load('v16-legacy.js?v=30').then(()=>load('upload-v29.js?v=30')).then(()=>{setBrand();window.__sfCoreReady=true;window.dispatchEvent(new Event('sf-core-ready'))}).catch(err=>{const s=document.getElementById('status');if(s)s.textContent='대시보드 로딩 오류: '+err.message});
+async function hydrateShared(){try{const r=await fetch(RAW+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const shared=await r.json();let local={};try{local=JSON.parse(localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}')}catch(e){}local.up=Array.isArray(shared.uploads)?shared.uploads:[];localStorage.setItem(STORE,JSON.stringify({mbo:local.mbo||{},gmbo:local.gmbo||local.groupMbo||{},sched:local.sched||{},up:local.up}));window.__sfSharedMeta=shared;status(shared.updatedAt?`공용 매출 데이터 동기화 완료 · 최근 업데이트 ${new Date(shared.updatedAt).toLocaleString('ko-KR')}`:'공용 매출 데이터 연결 완료 · 마스터 업로드 대기');return true}catch(e){status('공용 데이터 연결 실패 · 기본 데이터로 표시합니다: '+e.message);return false}}
+(async()=>{await hydrateShared();await load('v16-legacy.js?v=31');await load('shared-v31.js?v=31');await load('upload-v31.js?v=31');setBrand();window.__sfCoreReady=true;window.dispatchEvent(new Event('sf-core-ready'))})().catch(err=>status('대시보드 로딩 오류: '+err.message));
 })();
