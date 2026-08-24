@@ -1,0 +1,5 @@
+const CACHE='sales-forecast-static-v29';
+const STATIC=['./v16.js','./upload-v29.js','./export-v19.js','./export-v21.js','./decouple-v22.js','./hotfix-v23.js','./defaults-v26.js','./data.js'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC)).catch(()=>{}));self.skipWaiting()});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('sales-forecast-static-')&&k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
+self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;if(!STATIC.some(p=>u.pathname.endsWith(p.replace('./',''))))return;e.respondWith(fetch(e.request,{cache:'no-store'}).then(r=>{if(r&&r.ok)caches.open(CACHE).then(c=>c.put(e.request,r.clone()));return r}).catch(()=>caches.match(e.request)))})
