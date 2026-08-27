@@ -1,0 +1,5 @@
+(()=>{'use strict';if(document.getElementById('visualPolishV74'))return;const s=document.createElement('style');s.id='visualPolishV74';s.textContent=`
+/* Readability only: preserve existing widths and horizontal scrolling */
+table{font-size:12.7px!important}th{font-size:11.8px!important;font-weight:800!important;letter-spacing:.01em}td{font-weight:650}th,td{padding-top:9.5px!important;padding-bottom:9.5px!important}.head h3{font-size:18px!important}.head p,.status,.muted{font-size:12px}.controls label{font-size:12.3px!important}.controls input,.controls select{font-size:13px!important}.pill,.tab,.master-btn{font-size:11.5px!important}.v61-chip{font-size:10.5px!important}.value{letter-spacing:-.01em}.table{scrollbar-gutter:stable}.panel{contain:layout style}.v53-full{contain:layout style}
+@media(max-width:1100px){table{font-size:12.2px!important}th{font-size:11.4px!important}}
+`;document.head.appendChild(s)})();
