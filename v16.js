@@ -1,1 +1,1 @@
-(()=>{'use strict';const s=document.createElement('script');s.src='bootstrap-v36.js?v=72';s.async=false;s.onerror=()=>{const e=document.getElementById('status');if(e)e.textContent='새 부트스트랩 로딩 실패';};document.body.appendChild(s)})();
+(()=>{'use strict';const s=document.createElement('script');s.src='bootstrap-v36.js?v=73';s.async=false;s.onerror=()=>{const e=document.getElementById('status');if(e)e.textContent='새 부트스트랩 로딩 실패';};document.body.appendChild(s)})();
