@@ -1,0 +1,5 @@
+const CACHE='scm-sales-forecast-pwa-v1';
+const SHELL=['/Sales_Forecast/','/Sales_Forecast/index.html','/Sales_Forecast/v16.js','/Sales_Forecast/manifest.webmanifest','/Sales_Forecast/app-icon.svg'];
+self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).catch(()=>{}))});
+self.addEventListener('activate',e=>{e.waitUntil((async()=>{for(const k of await caches.keys())if(k!==CACHE)await caches.delete(k);await self.clients.claim()})())});
+self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);if(u.origin!==location.origin)return;if(r.mode==='navigate'){e.respondWith(fetch(r).then(res=>{const copy=res.clone();caches.open(CACHE).then(c=>c.put('/Sales_Forecast/',copy)).catch(()=>{});return res}).catch(()=>caches.match('/Sales_Forecast/')));return}e.respondWith(caches.match(r).then(hit=>hit||fetch(r).then(res=>{if(res.ok&&u.pathname.startsWith('/Sales_Forecast/')){const copy=res.clone();caches.open(CACHE).then(c=>c.put(r,copy)).catch(()=>{})}return res})))})
