@@ -1,0 +1,12 @@
+{
+  "name": "sales-forecast-regression-harness",
+  "private": true,
+  "scripts": {
+    "test:static": "node scripts/regression-harness.mjs",
+    "test:smoke": "playwright test tests/smoke.spec.js --reporter=line",
+    "test": "npm run test:static && npm run test:smoke"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0"
+  }
+}
