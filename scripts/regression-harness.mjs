@@ -69,6 +69,30 @@ if (!bootstrap.includes("cache:'no-store'")) fail('shared bootstrap fetch must u
 if (!bootstrap.includes("?t='+Date.now()")) fail('shared bootstrap fetch must use cache-busting timestamp');
 ok('shared data fetch cache guards present');
 
+const masterUpload = read('master-upload-v34.js');
+if (!bootstrap.includes("CONTENTS_API='https://api.github.com/repos/yhbae106/Sales_Forecast/contents/shared-data/sales-history.json'")) fail('bootstrap must have GitHub contents API fallback for stale raw data');
+if (!bootstrap.includes('matchesExpected(shared,expected)')) fail('bootstrap must validate expected shared version after upload');
+if (!bootstrap.includes('sessionStorage.removeItem(EXPECT_KEY)')) fail('bootstrap must clear expected version only after a verified read');
+if (!masterUpload.includes('mergeMonth(existing,p)')) fail('master upload must preserve partial-month data safely');
+if (!masterUpload.includes("mergeMode:merged.mode")) fail('master upload must record snapshot/date-patch mode');
+if (masterUpload.includes("state.up=state.up.filter(r=>String(r.d||r.date||'').slice(0,7)!==p.month)")) fail('master upload must not blindly replace the whole month');
+if (!masterUpload.includes("window.dispatchEvent(new CustomEvent('sf-data-refreshed'")) fail('verified upload must refresh the live dashboard without reload');
+if (masterUpload.includes("location.replace(location.pathname+'?sync='")) fail('upload flow must not rely on immediate reload after GitHub write');
+if (!legacy.includes("window.addEventListener('sf-data-refreshed'")) fail('legacy KPI state must consume verified refreshed uploads');
+ok('shared upload freshness and partial-month merge guards present');
+
+const latestSrc = sources.slice().sort((a,b)=>String(a.lastDate||a.date||'').localeCompare(String(b.lastDate||b.date||''))).at(-1);
+if (latestSrc) {
+  const x = byMonth.get(latestSrc.month);
+  if (!x) fail('latest source month is absent from uploads');
+  else {
+    const delta = Math.abs(x.total - Number(latestSrc.total || 0));
+    if (delta > 0.5) fail('latest source total is not the exact dashboard source total');
+    else ok('latest source total reconciles exactly: ' + latestSrc.month + ' ' + x.total);
+  }
+}
+
+
 
 const unifiedFinal = read('unified-final-v73.js');
 const exportV21 = read('export-v21.js');
