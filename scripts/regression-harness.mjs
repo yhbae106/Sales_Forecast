@@ -237,6 +237,11 @@ if (!radar.includes('recent3CloseAvg')) fail('decision radar does not calculate 
 if (!radar.includes('forecastVsRecent3')) fail('decision radar does not compare forecast with recent three-month close average');
 if (!radar.includes('function trendSvg')) fail('decision radar close-trend visualization is missing');
 if (!radar.includes('allClosed=KEY.every(name=>closed.has(name))')) fail('decision radar must detect all managed vendors closed');
+if (!radar.includes("const E1=v=>Math.round((N(v)/1e8)*10)/10")) fail('decision radar must compare MBO status using displayed one-decimal eok values');
+if (!radar.includes('mboMetDisplay=mbo?E1(current)>=E1(mbo):false')) fail('closed MBO achievement must use rounded display values');
+if (!radar.includes("closeSignal='MBO 달성'")) fail('rounded closed-MBO success label is missing');
+if (!radar.includes("const deltaMbo=a.mbo?(E1(a.current)-E1(a.mbo))*1e8:null")) fail('trend MBO delta must use the same one-decimal display basis');
+
 if (!radar.includes('forecast=allClosed?current:rawForecast')) fail('decision radar forecast must collapse to current total when all vendors are closed');
 if (!forecastProgress.includes('fc=closed?cur:cur/p')) fail('top forecast cards must collapse forecast to current total when all vendors are closed');
 if (!forecastProgress.includes("window.addEventListener('sf-vendor-close-change'")) fail('forecast cards must refresh immediately after vendor close changes');
@@ -305,11 +310,16 @@ const seedData = JSON.parse(seedText.replace(/^window\.SEED_DATA\s*=\s*/, '').re
 if (!seedData.krHolidays2026 || !Object.keys(seedData.krHolidays2026).length) fail('KR holiday calendar is missing from seed data');
 const currentMbo = Number(shared.mbo?.[currentMonth] || 0);
 const currentTotal = currentRows.reduce((s,r)=>s+Number(r.a ?? r.amount ?? 0),0);
+const roundEok1 = won => Math.round((Number(won)/1e8)*10)/10;
+
 if (currentMbo > 0 && !Number.isFinite(Math.max(0,currentMbo*1e8-currentTotal))) fail('remaining MBO calculation is not finite');
 const managedVendors=['백제약품영등포지점','백제약품(주)영남본부','대전백제약품','백제약품(주)원주지점','(주)인천약품','(주)복산나이스','유진약품(주)','아이팜코리아(주)'];
 const currentClosed=new Set(shared.closedVendors?.[currentMonth]||[]);
 if (managedVendors.every(v=>currentClosed.has(v))) {
   const closeAwareForecast=currentTotal;
+  const roundedCurrent=roundEok1(currentTotal),roundedMbo=Math.round(currentMbo*10)/10;
+  if (currentMbo>0 && roundedCurrent>=roundedMbo) ok('rounded closed-MBO status achieved: '+roundedCurrent+' >= '+roundedMbo);
+  else if (currentMbo>0 && roundedCurrent<roundedMbo) ok('rounded closed-MBO status below target: '+roundedCurrent+' < '+roundedMbo);
   if (Math.abs(closeAwareForecast-currentTotal) > 0.5) fail('all-closed forecast model must equal the authoritative current total');
   ok('all managed vendors closed: forecast is locked to current total ' + currentTotal);
 }
