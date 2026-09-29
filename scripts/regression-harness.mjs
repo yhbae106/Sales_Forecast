@@ -57,6 +57,7 @@ const required = [
   ['bootstrap legacy', bootstrap, new RegExp('v16-legacy\\.js\\?v=' + version)],
   ['bootstrap shared', bootstrap, new RegExp('shared-v31\\.js\\?v=' + version)],
   ['bootstrap upload', bootstrap, new RegExp('master-upload-v34\\.js\\?v=' + version)],
+  ['bootstrap upload diff', bootstrap, new RegExp('upload-diff-v99\\.js\\?v=' + version)],
   ['export loader version', exportLoader, new RegExp("const V='" + version + "'")],
   ['unified final version', unifiedLoader, new RegExp('unified-final-v73\\.js\\?v=' + version)]
 ];
@@ -80,6 +81,31 @@ if (!masterUpload.includes("window.dispatchEvent(new CustomEvent('sf-data-refres
 if (masterUpload.includes("location.replace(location.pathname+'?sync='")) fail('upload flow must not rely on immediate reload after GitHub write');
 if (!read('v16-legacy.js').includes("window.addEventListener('sf-data-refreshed'")) fail('legacy KPI state must consume verified refreshed uploads');
 ok('shared upload freshness and partial-month merge guards present');
+
+const uploadDiff = read('upload-diff-v99.js');
+if (!v16.includes("'upload-diff-v99.js?v=" + version + "'")) fail('core preloader is missing upload diff inspector');
+if (!sharedRuntime.includes('buildUploadDiff(previousRows,nextRows,sourceFiles)')) fail('shared runtime must calculate upload-to-upload row diffs');
+if (!sharedRuntime.includes('lastUploadDiff=buildUploadDiff(previous.uploads||[],payload.up||[],sourceFiles)')) fail('sales publisher must compare against the authoritative previous shared upload');
+if (!sharedRuntime.includes('lastUploadDiff};return putShared')) fail('sales publisher must persist lastUploadDiff with the shared payload');
+if (!sharedRuntime.includes('window.__SF_LAST_UPLOAD_DIFF=got.lastUploadDiff||null')) fail('verified shared write must expose the latest upload diff');
+if (!bootstrap.includes('window.__SF_LAST_UPLOAD_DIFF=shared.lastUploadDiff||null')) fail('bootstrap must hydrate persisted upload diff');
+if (!uploadDiff.includes("id='sfUploadDiffBtn'") && !uploadDiff.includes("b.id='sfUploadDiffBtn'")) fail('upload diff inspector button is missing');
+if (!uploadDiff.includes('직전 업로드 대비 증감')) fail('upload diff inspector label is missing');
+for (const label of ['업체별 순증감','SKU 상세','직전 업로드 누계','현재 업로드 누계','순증감']) {
+  if (!uploadDiff.includes(label)) fail('upload diff inspector missing UI label: ' + label);
+}
+if (!uploadDiff.includes("startsWith('Update shared sales data')")) fail('upload diff fallback must select only sales-data commits');
+if (!uploadDiff.includes('per_page=30')) fail('upload diff fallback must scan enough file history to skip settings-only commits');
+if (!uploadDiff.includes('sales[1].sha')) fail('upload diff fallback must read the previous sales upload commit');
+if (!uploadDiff.includes("window.addEventListener('sf-data-refreshed'")) fail('upload diff inspector must refresh after a verified upload');
+const diffBefore=[{d:'2026-09-29',v:'A',g:'G1',m:'SKU1',a:100},{d:'2026-09-29',v:'A',g:'G1',m:'SKU2',a:40},{d:'2026-09-29',v:'B',g:'G2',m:'SKU3',a:70}];
+const diffAfter=[{d:'2026-09-29',v:'A',g:'G1',m:'SKU1',a:125},{d:'2026-09-29',v:'A',g:'G1',m:'SKU2',a:30},{d:'2026-09-29',v:'B',g:'G2',m:'SKU3',a:70},{d:'2026-09-29',v:'B',g:'G2',m:'SKU4',a:15}];
+const diffKey=r=>[r.d,r.v,r.g,r.m].join('\u0001'),beforeMap=new Map(diffBefore.map(r=>[diffKey(r),r.a])),afterMap=new Map(diffAfter.map(r=>[diffKey(r),r.a])),diffKeys=new Set([...beforeMap.keys(),...afterMap.keys()]);
+let testDelta=0,testChanged=0,testVendorA=0,testVendorB=0;
+for (const k of diffKeys) { const d=(afterMap.get(k)||0)-(beforeMap.get(k)||0); if(Math.abs(d)<=.5)continue; testDelta+=d; testChanged++; const vendor=k.split('\u0001')[1]; if(vendor==='A')testVendorA+=d; if(vendor==='B')testVendorB+=d; }
+if (testDelta!==30 || testChanged!==3 || testVendorA!==15 || testVendorB!==15) fail('upload diff regression model no longer reconciles row and vendor changes');
+ok('previous-upload diff persistence, fallback, UI, and reconciliation guards present');
+
 
 const latestSrc = sources.slice().sort((a,b)=>String(a.lastDate||a.date||'').localeCompare(String(b.lastDate||b.date||''))).at(-1);
 if (latestSrc) {
@@ -136,7 +162,7 @@ ok('closed vendor allocation regression model');
 
 
 const runtimeJs = [
-  'v16.js','bootstrap-v36.js','v16-legacy.js','shared-v31.js','master-upload-v34.js',
+  'v16.js','bootstrap-v36.js','v16-legacy.js','shared-v31.js','master-upload-v34.js','upload-diff-v99.js',
   'upper-history-v39.js','vendor-mbo-gap-v43.js','vendor-close-ui-v67.js',
   'export-v19.js','export-v21.js','ui-streamline-v46.js','detail-shell-v61.js',
   'final-layout-v53.js','unified-loader-v74.js','unified-final-v73.js',
