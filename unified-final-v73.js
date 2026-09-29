@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],N=v=>Number(v||0),W=v=>(N(v)/1e8).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1}),P=v=>Number.isFinite(v)?`(${(v*100).toFixed(1)}%)`:'-',X=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),RB=v=>{const pct=Math.max(0,Math.min(140,N(v)*100))/140*100;return`<span class="sf-ratebar" style="--rate:${pct.toFixed(1)}%"><i></i><b>${P(v)}</b></span>`};
-const STORE='sales_forecast_v16',CLOSE_KEY='sales_forecast_vendor_closed_v66',KEY=['백제약품영등포지점','백제약품(주)영남본부','대전백제약품','백제약품(주)원주지점','(주)인천약품','(주)복산나이스','유진약품(주)','아이팜코리아(주)'];let upperVendor='',gSort='avg',gDir='desc',cSort='avg',cDir='desc',mSort='avg',mDir='desc',busy=false,tm,inputTm,allCache=null,allSig='';
+const STORE='sales_forecast_v16',CLOSE_KEY='sales_forecast_vendor_closed_v66',KEY=['백제약품영등포지점','백제약품(주)영남본부','대전백제약품','백제약품(주)원주지점','(주)인천약품','(주)복산나이스','유진약품(주)','아이팜코리아(주)'];let upperVendor='',gSort='avg',gDir='desc',cSort='avg',cDir='desc',mSort='avg',mDir='desc',busy=false,inputTm,allCache=null,allSig='';
 window.__SF_UNIFIED_FINAL_ACTIVE=true;upperVendor=window.__SF_UPPER_VENDOR||'';
 function state(){try{return JSON.parse(localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}')}catch(e){return{}}}
 function saveState(z){try{localStorage.setItem(STORE,JSON.stringify(z))}catch(e){}}
@@ -33,5 +33,5 @@ document.addEventListener('blur',e=>{if(e.target?.id==='groupMbo'){let v=String(
 window.addEventListener('sf-vendor-close-change',()=>setTimeout(renderMbo,20));window.addEventListener('sf-data-refreshed',()=>{allCache=null;allSig='';setTimeout(run,20)});
 window.addEventListener('sf-vendor-scope-change',e=>{upperVendor=e.detail?.vendor||'';window.__SF_UPPER_VENDOR=upperVendor;syncSkuVendor(upperVendor);setTimeout(()=>{renderGroup();context();renderSku()},30)});
 window.addEventListener('sf-detail-shell-ready',()=>{syncSkuVendor(upperVendor);setTimeout(renderSku,20)});
-new MutationObserver(m=>{if(busy)return;const relevant=m.some(x=>x.target.closest?.('#groupTable,#v51CompareTable,#groupTargetTable')||x.target.id==='groupTable'||x.target.id==='v51CompareTable'||x.target.id==='groupTargetTable');if(relevant){clearTimeout(tm);tm=setTimeout(run,25)}}).observe(document.body,{subtree:true,childList:true});setTimeout(run,80);setTimeout(run,500);window.__SF_V61_READY=true;window.__SF_V73_READY=true;window.dispatchEvent(new Event('sf-v61-ready'));
+setTimeout(run,80);setTimeout(run,500);window.__SF_V61_READY=true;window.__SF_V73_READY=true;window.dispatchEvent(new Event('sf-v61-ready'));
 })();
