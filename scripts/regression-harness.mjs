@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 
 const read = p => fs.readFileSync(p, 'utf8');
 const fail = m => { console.error('HARNESS FAIL:', m); process.exitCode = 1; };
@@ -108,6 +109,47 @@ open.forEach((v,i)=>{
 if (testGap.B !== 0) fail('closed vendor regression model allocated product-group need');
 if (open.reduce((s,v)=>s+testGap[v],0) !== testNeed) fail('open vendor product-group need no longer reconciles to total need');
 ok('closed vendor allocation regression model');
+
+
+const runtimeJs = [
+  'v16.js','bootstrap-v36.js','v16-legacy.js','shared-v31.js','master-upload-v34.js',
+  'upper-history-v39.js','vendor-mbo-gap-v43.js','vendor-close-ui-v67.js',
+  'export-v19.js','export-v21.js','ui-streamline-v46.js','detail-shell-v61.js',
+  'final-layout-v53.js','unified-loader-v74.js','unified-final-v73.js',
+  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','vendor-excel-format-v48.js'
+];
+for (const file of runtimeJs) {
+  try {
+    execFileSync(process.execPath, ['--check', file], {stdio:'pipe'});
+  } catch (e) {
+    fail(file + ' JavaScript syntax check failed: ' + String(e.stderr || e.message).trim());
+  }
+  if (read(file).includes('\\nfunction')) fail(file + ' contains a literal \\n before function declaration');
+}
+ok('runtime JavaScript syntax checks');
+
+const currentMonth = latestUpload.slice(0,7);
+const currentRows = uploads.filter(r => String(r.d ?? r.date ?? '').slice(0,7) === currentMonth);
+const skuNames = new Set(currentRows.map(r => String(r.m ?? r.material ?? '')).filter(Boolean));
+if (!skuNames.size) fail('current month has no SKU/material data for drilldown');
+else ok('current month SKU data available: ' + skuNames.size);
+
+const legacy = read('v16-legacy.js');
+const upperHistory = read('upper-history-v39.js');
+const detailShell = read('detail-shell-v61.js');
+const unified = read('unified-final-v73.js');
+if (!legacy.includes('if(window.__SF_UNIFIED_FINAL_ACTIVE)return')) fail('legacy product-group renderer is not gated by unified renderer');
+if (!upperHistory.includes('if(!window.__SF_UNIFIED_FINAL_ACTIVE)renderGroup()')) fail('upper-history can still overwrite unified product-group table');
+if (!upperHistory.includes('sf-vendor-scope-change')) fail('vendor scope handoff event is missing');
+if (!unified.includes('window.__SF_UNIFIED_FINAL_ACTIVE=true')) fail('unified renderer activation flag is missing');
+if (!unified.includes("window.addEventListener('sf-vendor-scope-change'")) fail('unified renderer does not consume vendor scope handoff');
+if (!unified.includes("window.addEventListener('sf-detail-shell-ready'")) fail('SKU renderer does not recover when detail shell becomes ready');
+if (!detailShell.includes("window.dispatchEvent(new Event('sf-detail-shell-ready'))")) fail('detail shell ready event is missing');
+if (!detailShell.includes("r.d?.slice(0,7)<=m")) fail('SKU product-group options are limited to current month instead of comparison history');
+for (const label of ['확정월 평균','진행월 현재','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율','업체 목표','추가 필요']) {
+  if (!unified.includes(label)) fail('unified product-group MBO table missing column: ' + label);
+}
+ok('unified product-group MBO and SKU drilldown guards present');
 
 if (process.exitCode) process.exit(process.exitCode);
 console.log('HARNESS PASS');

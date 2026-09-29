@@ -7,7 +7,9 @@ function excelValue(txt){const s=String(txt??'').trim();if(!s)return'';if(/^[-+]
 function tableAOA(t){return t?[...t.rows].map(r=>[...r.cells].map(c=>excelValue(c.innerText))):[['데이터 없음']]}
 function autoWidth(ws,a){const n=Math.max(0,...a.map(r=>r.length));ws['!cols']=Array.from({length:n},(_,i)=>({wch:Math.min(36,Math.max(10,...a.map(r=>String(r[i]??'').length+2)))}))}
 async function download(sheets,name,btn,label){try{if(btn){btn.disabled=true;btn.textContent='생성중…'}const X=await loadX(),wb=X.utils.book_new();for(const[s,a]of sheets){const ws=X.utils.aoa_to_sheet(a);autoWidth(ws,a);X.utils.book_append_sheet(wb,ws,String(s).slice(0,31))}X.writeFile(wb,`${safe(name)}_${month()||'전체'}.xlsx`)}finally{if(btn){btn.disabled=false;btn.textContent=label||'Excel'}}}
-function state(){try{return JSON.parse(localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}')}catch(e){return{}}}\nfunction closeState(){let local={};try{local=JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){}const shared=window.__SF_SHARED_CLOSED;return shared&&typeof shared==='object'?{...local,...shared}:local}\nfunction closedSet(){return new Set(closeState()[month()]||[])}
+function state(){try{return JSON.parse(localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}')}catch(e){return{}}}
+function closeState(){let local={};try{local=JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){}const shared=window.__SF_SHARED_CLOSED;return shared&&typeof shared==='object'?{...local,...shared}:local}
+function closedSet(){return new Set(closeState()[month()]||[])}
 function stored(){const z=state();const a=z.up||z.uploadRows||z.uploads;if(Array.isArray(a)&&a.length)return a;return window.__SF_SHARED_UPLOADS||[]}
 function seed(){return(window.SEED_DATA?.dailyRecords||[]).map(r=>({d:r.date,v:r.vendor||'',g:r.productGroup||'미분류',a:Number(r.amount||0)}))}
 function allRows(){const up=stored().map(r=>({d:r.d||r.date,v:r.v||r.vendor||'',g:r.g||r.productGroup||'미분류',a:Number(r.a??r.amount??0)})),rep=new Set(up.map(r=>r.d));return seed().filter(r=>!rep.has(r.d)).concat(up)}
