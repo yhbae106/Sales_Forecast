@@ -21,17 +21,12 @@ jobs:
       - name: Run data and runtime harness
         run: node scripts/regression-harness.mjs
 
-      - name: Verify gh-pages is ancestor before sync
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          git fetch origin gh-pages
-          git merge-base --is-ancestor origin/gh-pages origin/main
-
       - name: Sync gh-pages with main
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout gh-pages
+          git fetch origin gh-pages
+          git checkout -B gh-pages origin/gh-pages
           git merge --no-ff origin/main -m "Sync gh-pages with main ${GITHUB_SHA}"
           git push origin gh-pages
