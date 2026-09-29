@@ -235,7 +235,7 @@ ok('visual readability and initial-render performance guards present');
 
 const uiStreamline = read('ui-streamline-v46.js');
 if (!radar.includes('3개월 평균 ') || !radar.includes('a.recent3CloseAvg')) fail('month-close chart is missing the three-month average benchmark label');
-if (!radar.includes('class=\\"average\\"')) fail('month-close chart legend is missing the three-month average benchmark');
+if (!radar.includes('class="average"')) fail('month-close chart legend is missing the three-month average benchmark');
 if (unified.includes('MutationObserver')) fail('unified renderer still contains obsolete MutationObserver logic');
 if (unifiedLoader.includes('QuietObserver') || unifiedLoader.includes('window.MutationObserver=')) fail('unified loader still monkeypatches global MutationObserver');
 if (uiStreamline.includes('dailyTable') || uiStreamline.includes('collapseDaily')) fail('retired daily-detail UI code is still bundled');
