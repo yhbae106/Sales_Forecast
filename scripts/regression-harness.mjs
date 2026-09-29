@@ -163,7 +163,7 @@ const forecastProgress = read('forecast-progress-v81.js');
 const sharedRuntime = read('shared-v31.js');
 if (!v16.includes("'decision-radar-v93.js'")) fail('decision radar is not preloaded by v16');
 if (!exportLoader.includes("'decision-radar-v93.js'")) fail('decision radar is not loaded by final UI loader');
-for (const label of ['운영 판단 · 이슈 레이더','월마감 전망','남은 MBO','잔여 영업일 필요 일평균','최근 3영업일 평균','관리업체 전체 현황','제품군 이슈']) {
+for (const label of ['운영 판단 · 이슈 레이더','월마감 전망','남은 MBO','잔여 영업일 필요 일평균','최근 3개월 마감 평균','월 마감 추세','관리업체 전체 현황','제품군 이슈']) {
   if (!radar.includes(label)) fail('decision radar missing decision label: ' + label);
 }
 if (radar.includes('MutationObserver')) fail('decision radar must remain event-driven and must not add MutationObserver');
@@ -181,7 +181,11 @@ if (!vendorClose.includes('sf-vendor-table-rendered')) fail('close controls must
 if (!vendorGap.includes("gapHead.textContent='MBO 대비 부족액'")) fail('stage-one vendor table must expose per-vendor MBO gap');
 if (!vendorGap.includes('allocateGap(overallGap,mbo,mp,h,closed)')) fail('stage-one vendor gap allocation is missing');
 if (!finalLayout.includes("group.insertAdjacentElement('afterend',mbo)")) fail('product-group MBO action panel is not placed after product-group status');
-if (!finalLayout.includes("(detail||mbo).insertAdjacentElement('afterend',daily)")) fail('raw daily detail is not placed after action/detail drilldown');
+if (index.includes('id="dailyTable"')) fail('retired daily cumulative detail panel is still present in index');
+if (legacy.includes('dayTable()')) fail('retired daily detail renderer is still called');
+if (!radar.includes('recent3CloseAvg')) fail('decision radar does not calculate recent three-month close average');
+if (!radar.includes('forecastVsRecent3')) fail('decision radar does not compare forecast with recent three-month close average');
+if (!radar.includes('function trendSvg')) fail('decision radar close-trend visualization is missing');
 ok('decision radar, vendor control, holiday-aware forecast, and information hierarchy guards present');
 
 if (legacy.includes("$('mbo').oninput=function(){if(this.value==='')delete st.mbo")) fail('MBO typing must not trigger full legacy render');
@@ -201,7 +205,7 @@ if (!bootstrap.includes('window.__SF_UI_TEXT')) fail('bootstrap does not expose 
 if (!sharedRuntime.includes('window.__sfPublishUiText')) fail('shared runtime does not publish dashboard text settings');
 if (!sharedRuntime.includes("'Update shared dashboard text settings'")) fail('dashboard text settings do not have a dedicated shared commit');
 if (textEditor.includes('MutationObserver')) fail('master text editor must remain event-driven');
-for (const key of ['dashboard.title','dashboard.subtitle','kpi.mbo','kpi.current','kpi.forecast','section.radar.title','section.vendor.title','section.group.title','section.mbo.title','section.sku.title','section.daily.title']) {
+for (const key of ['dashboard.title','dashboard.subtitle','kpi.mbo','kpi.current','kpi.forecast','section.radar.title','radar.close.label','radar.remaining.label','radar.needDaily.label','radar.recent3.label','radar.trend.title','section.vendor.title','section.group.title','section.mbo.title','section.sku.title']) {
   if (!textEditor.includes(key)) fail('master text editor missing editable field: ' + key);
 }
 if (!textEditor.includes("id='sfTextEditBtn'") && !textEditor.includes("id=\"sfTextEditBtn\"") && !textEditor.includes("b.id='sfTextEditBtn'")) fail('master text editor button is missing');
@@ -215,6 +219,19 @@ if (!kpiLayout.includes("sf-kpi-layout-updated")) fail('KPI layout does not noti
 if (!radar.includes("sf-radar-rendered")) fail('radar does not notify text overrides after rerender');
 if (!finalLayout.includes("sf-layout-updated")) fail('final layout does not notify text overrides after title reset');
 ok('master text editor, stable KPI keys, and shared uiText persistence guards present');
+
+const visualPolish = read('visual-polish-v74.js');
+if (!upperHistory.includes('sf-ratebar')) fail('stage-one vendor table is missing visual rate bars');
+if (!unified.includes('sf-ratebar')) fail('product/SKU tables are missing visual rate bars');
+if (!visualPolish.includes('content-visibility:auto')) fail('below-the-fold panels are not using deferred paint');
+if (!finalLayout.includes("'sf-defer-render'")) fail('lower analysis panels are not marked for deferred paint');
+if (!visualPolish.includes('#vendorTable th:nth-child(2)')) fail('wide vendor table is missing sticky identity columns');
+if (!visualPolish.includes('#groupTable th:first-child')) fail('wide product/SKU tables are missing sticky identity columns');
+if (!unified.includes("allCache=null,allSig=''")) fail('unified renderer sales-row cache is missing');
+if (!legacy.includes('allCache=null')) fail('legacy renderer sales-row cache is missing');
+if (legacy.includes('function render(){cards();vendor();groups();detail();compare();groupTarget()}')) fail('legacy renderer still computes hidden detail/compare tables on every render');
+if (legacy.includes('function dayTable()')) fail('retired dayTable code is still bundled');
+ok('visual readability and initial-render performance guards present');
 
 const seedText = read('data.js');
 const seedData = JSON.parse(seedText.replace(/^window\.SEED_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
