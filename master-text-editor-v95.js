@@ -14,6 +14,11 @@ const FIELDS=[
   {group:'KPI 흐름',key:'flow.mbo',label:'MBO 흐름 제목',def:'MBO 기준',get:()=>$('#kpiFlowSummary .kpi-flow-row:nth-child(1) .kpi-flow-title')},
   {group:'KPI 흐름',key:'flow.pace',label:'순도 흐름 제목',def:'오늘 기준 순도 목표',get:()=>$('#kpiFlowSummary .kpi-flow-row:nth-child(2) .kpi-flow-title')},
   {group:'섹션',key:'section.radar.title',label:'운영 판단 제목',def:'운영 판단 · 이슈 레이더',get:()=>$('#decisionRadarV93 .head h3'),kind:'title'},
+  {group:'운영 판단 카드',key:'radar.close.label',label:'월마감 전망 카드',def:'월마감 전망',get:()=>$('#decisionRadarV93 .sf-radar-kpi:nth-child(1) .k')},
+  {group:'운영 판단 카드',key:'radar.remaining.label',label:'남은 MBO 카드',def:'남은 MBO',get:()=>$('#decisionRadarV93 .sf-radar-kpi:nth-child(2) .k')},
+  {group:'운영 판단 카드',key:'radar.needDaily.label',label:'필요 일평균 카드',def:'잔여 영업일 필요 일평균',get:()=>$('#decisionRadarV93 .sf-radar-kpi:nth-child(3) .k')},
+  {group:'운영 판단 카드',key:'radar.recent3.label',label:'최근 3개월 평균 카드',def:'최근 3개월 마감 평균',get:()=>$('#decisionRadarV93 .sf-radar-kpi:nth-child(4) .k')},
+  {group:'운영 판단 카드',key:'radar.trend.title',label:'월 마감 추세 그래프 제목',def:'월 마감 추세',get:()=>$('#decisionRadarV93 .sf-radar-trend-head b')},
   {group:'섹션',key:'section.vendor.title',label:'1단계 업체 제목',def:'권역 · 업체 현황',get:()=>$('#vendorTable')?.closest('section.panel')?.querySelector('.head h3'),kind:'title'},
   {group:'섹션',key:'section.vendor.desc',label:'1단계 업체 설명',def:'업체 클릭 → 2단계 제품군 현황 · 확정월 평균과 현재 매출율 + 마감/MBO 배분을 한 표에서 확인',get:()=>$('#vendorTable')?.closest('section.panel')?.querySelector('.head p'),area:true},
   {group:'섹션',key:'section.group.title',label:'2단계 제품군 제목',def:'제품군 월별 현황',get:()=>$('#groupTable')?.closest('section.panel')?.querySelector('.head h3'),kind:'title'},
@@ -21,8 +26,6 @@ const FIELDS=[
   {group:'섹션',key:'section.mbo.title',label:'제품군 MBO 제목',def:'제품군 MBO · 조치 시뮬레이션',get:()=>$('#groupTargetTable')?.closest('section.panel')?.querySelector('.head h3'),kind:'title'},
   {group:'섹션',key:'section.sku.title',label:'3단계 SKU 제목',def:'SKU 월별 비교',get:()=>($('#v51CompareTable')||$('#detailTable'))?.closest('section.panel')?.querySelector('.head h3'),kind:'title'},
   {group:'섹션',key:'section.sku.desc',label:'3단계 SKU 설명',def:'업체와 제품군을 선택하면 해당 조건의 SKU 월별 실적과 증감 현황을 한 표에서 확인합니다.',get:()=>($('#v51CompareTable')||$('#detailTable'))?.closest('section.panel')?.querySelector('.head p'),area:true},
-  {group:'섹션',key:'section.daily.title',label:'일자별 상세 제목',def:'일자별 추세 · 기준 누계 상세',get:()=>$('#dailyTable')?.closest('section.panel')?.querySelector('.head h3'),kind:'title'},
-  {group:'섹션',key:'section.daily.desc',label:'일자별 상세 설명',def:'그날 얼마여야 하는지, 실제 얼마인지, 달성률과 부족/초과액을 표시합니다.',get:()=>$('#dailyTable')?.closest('section.panel')?.querySelector('.head p'),area:true}
 ];
 let master=!!window.__sfMasterToken,applyTimer=null;
 function texts(){return window.__SF_UI_TEXT&&typeof window.__SF_UI_TEXT==='object'?window.__SF_UI_TEXT:{}}
