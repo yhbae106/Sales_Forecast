@@ -1,0 +1,20 @@
+{
+  "name": "SCM Sales Forecast Control Tower",
+  "short_name": "SCM Forecast",
+  "description": "종합도매 매출 · MBO 운영 대시보드",
+  "start_url": "/Sales_Forecast/",
+  "scope": "/Sales_Forecast/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
