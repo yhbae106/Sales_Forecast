@@ -21,8 +21,6 @@ const FIELDS=[
   {group:'섹션',key:'section.mbo.title',label:'제품군 MBO 제목',def:'제품군 MBO · 조치 시뮬레이션',get:()=>$('#groupTargetTable')?.closest('section.panel')?.querySelector('.head h3'),kind:'title'},
   {group:'섹션',key:'section.sku.title',label:'3단계 SKU 제목',def:'SKU 월별 비교',get:()=>($('#v51CompareTable')||$('#detailTable'))?.closest('section.panel')?.querySelector('.head h3'),kind:'title'},
   {group:'섹션',key:'section.sku.desc',label:'3단계 SKU 설명',def:'업체와 제품군을 선택하면 해당 조건의 SKU 월별 실적과 증감 현황을 한 표에서 확인합니다.',get:()=>($('#v51CompareTable')||$('#detailTable'))?.closest('section.panel')?.querySelector('.head p'),area:true},
-  {group:'섹션',key:'section.daily.title',label:'일자별 상세 제목',def:'일자별 추세 · 기준 누계 상세',get:()=>$('#dailyTable')?.closest('section.panel')?.querySelector('.head h3'),kind:'title'},
-  {group:'섹션',key:'section.daily.desc',label:'일자별 상세 설명',def:'그날 얼마여야 하는지, 실제 얼마인지, 달성률과 부족/초과액을 표시합니다.',get:()=>$('#dailyTable')?.closest('section.panel')?.querySelector('.head p'),area:true}
 ];
 let master=!!window.__sfMasterToken,applyTimer=null;
 function texts(){return window.__SF_UI_TEXT&&typeof window.__SF_UI_TEXT==='object'?window.__SF_UI_TEXT:{}}
