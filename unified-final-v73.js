@@ -3,7 +3,7 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],N=v
 const STORE='sales_forecast_v16',CLOSE_KEY='sales_forecast_vendor_closed_v66',KEY=['백제약품영등포지점','백제약품(주)영남본부','대전백제약품','백제약품(주)원주지점','(주)인천약품','(주)복산나이스','유진약품(주)','아이팜코리아(주)'];let upperVendor='',gSort='avg',gDir='desc',cSort='avg',cDir='desc',mSort='avg',mDir='desc',busy=false,tm,inputTm;
 function state(){try{return JSON.parse(localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}')}catch(e){return{}}}
 function saveState(z){try{localStorage.setItem(STORE,JSON.stringify(z))}catch(e){}}
-function closedSet(){try{const z=JSON.parse(localStorage.getItem(CLOSE_KEY)||JSON.stringify(window.__SF_SHARED_CLOSED||{}));return new Set(z[cur()]||[])}catch(e){return new Set()}}
+function closeState(){let local={};try{local=JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){}const shared=window.__SF_SHARED_CLOSED;return shared&&typeof shared==='object'?{...local,...shared}:local}\nfunction closedSet(){return new Set(closeState()[cur()]||[])}
 function stored(){const z=state(),a=z.up||z.uploadRows||z.uploads;return Array.isArray(a)&&a.length?a:(window.__SF_SHARED_UPLOADS||[])}
 function seed(){return(window.SEED_DATA?.dailyRecords||[]).map(r=>({d:r.date,v:r.vendor||'',g:r.productGroup||'미분류',m:r.material||'미분류',a:N(r.amount)}))}
 function all(){const up=stored().map(r=>({d:r.d||r.date,v:r.v||r.vendor||'',g:r.g||r.productGroup||'미분류',m:r.m||r.material||'미분류',a:N(r.a??r.amount)})),rep=new Set(up.map(r=>r.d));return seed().filter(r=>!rep.has(r.d)).concat(up)}
