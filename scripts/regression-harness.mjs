@@ -116,7 +116,7 @@ const runtimeJs = [
   'upper-history-v39.js','vendor-mbo-gap-v43.js','vendor-close-ui-v67.js',
   'export-v19.js','export-v21.js','ui-streamline-v46.js','detail-shell-v61.js',
   'final-layout-v53.js','unified-loader-v74.js','unified-final-v73.js',
-  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','vendor-excel-format-v48.js'
+  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','vendor-excel-format-v48.js','decision-radar-v93.js'
 ];
 for (const file of runtimeJs) {
   try {
@@ -150,6 +150,34 @@ for (const label of ['확정월 평균','진행월 현재','직전월 대비 현
   if (!unified.includes(label)) fail('unified product-group MBO table missing column: ' + label);
 }
 ok('unified product-group MBO and SKU drilldown guards present');
+
+
+const radar = read('decision-radar-v93.js');
+const finalLayout = read('final-layout-v53.js');
+const forecastProgress = read('forecast-progress-v81.js');
+if (!v16.includes("'decision-radar-v93.js'")) fail('decision radar is not preloaded by v16');
+if (!exportLoader.includes("'decision-radar-v93.js'")) fail('decision radar is not loaded by final UI loader');
+for (const label of ['운영 판단 · 이슈 레이더','월마감 전망','남은 MBO','잔여 영업일 필요 일평균','최근 3영업일 평균','관리업체 이슈','제품군 이슈']) {
+  if (!radar.includes(label)) fail('decision radar missing decision label: ' + label);
+}
+if (radar.includes('MutationObserver')) fail('decision radar must remain event-driven and must not add MutationObserver');
+if (!radar.includes("kind==='vendor'&&(!KEY.includes(name)||closed.has(name))")) fail('decision radar must limit vendor alerts to open managed vendors');
+if (!radar.includes('phase(m,last,bounds(m,hist,sched))') || !radar.includes('cuts[h]=eq(')) fail('decision radar must compare equivalent collection progress positions');
+if (!radar.includes('krHolidays2026') || !radar.includes('customHolidaysByMonth')) fail('decision radar business days must exclude holidays');
+if (!forecastProgress.includes('krHolidays2026') || !forecastProgress.includes('customHolidaysByMonth')) fail('overall forecast business days must exclude holidays');
+if (!legacy.includes('krHolidays2026') || !legacy.includes('customHolidaysByMonth')) fail('legacy daily comparison business days must exclude holidays');
+if (!upperHistory.includes('sf-radar-vendor-select')) fail('vendor table does not accept decision-radar drilldown');
+if (!finalLayout.includes("group.insertAdjacentElement('afterend',mbo)")) fail('product-group MBO action panel is not placed after product-group status');
+if (!finalLayout.includes("(detail||mbo).insertAdjacentElement('afterend',daily)")) fail('raw daily detail is not placed after action/detail drilldown');
+ok('decision radar, holiday-aware forecast, and information hierarchy guards present');
+
+const seedText = read('data.js');
+const seedData = JSON.parse(seedText.replace(/^window\.SEED_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
+if (!seedData.krHolidays2026 || !Object.keys(seedData.krHolidays2026).length) fail('KR holiday calendar is missing from seed data');
+const currentMbo = Number(shared.mbo?.[currentMonth] || 0);
+const currentTotal = currentRows.reduce((s,r)=>s+Number(r.a ?? r.amount ?? 0),0);
+if (currentMbo > 0 && !Number.isFinite(Math.max(0,currentMbo*1e8-currentTotal))) fail('remaining MBO calculation is not finite');
+ok('decision input data is available');
 
 if (process.exitCode) process.exit(process.exitCode);
 console.log('HARNESS PASS');
