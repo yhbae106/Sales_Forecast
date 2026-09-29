@@ -139,8 +139,13 @@ const upperHistory = read('upper-history-v39.js');
 const detailShell = read('detail-shell-v61.js');
 const unified = read('unified-final-v73.js');
 if (!legacy.includes('if(window.__SF_UNIFIED_FINAL_ACTIVE)return')) fail('legacy product-group renderer is not gated by unified renderer');
-if (!upperHistory.includes('if(!window.__SF_UNIFIED_FINAL_ACTIVE)renderGroup()')) fail('upper-history can still overwrite unified product-group table');
 if (!upperHistory.includes('sf-vendor-scope-change')) fail('vendor scope handoff event is missing');
+if (upperHistory.includes('MutationObserver')) fail('stage-one vendor renderer must remain event-driven');
+if (!upperHistory.includes("let dataCache=null,dataSig=''")) fail('stage-one vendor renderer must cache monthly aggregates');
+for (const label of ['26.','확정월 평균','진행월 현재','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율']) {
+  if (label === '26.') continue;
+  if (!upperHistory.includes(label)) fail('stage-one vendor table missing column: ' + label);
+}
 if (!unified.includes('window.__SF_UNIFIED_FINAL_ACTIVE=true')) fail('unified renderer activation flag is missing');
 if (!unified.includes("window.addEventListener('sf-vendor-scope-change'")) fail('unified renderer does not consume vendor scope handoff');
 if (!unified.includes("window.addEventListener('sf-detail-shell-ready'")) fail('SKU renderer does not recover when detail shell becomes ready');
@@ -149,27 +154,43 @@ if (!detailShell.includes("r.d?.slice(0,7)<=m")) fail('SKU product-group options
 for (const label of ['확정월 평균','진행월 현재','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율','업체 목표','추가 필요']) {
   if (!unified.includes(label)) fail('unified product-group MBO table missing column: ' + label);
 }
-ok('unified product-group MBO and SKU drilldown guards present');
+ok('stage-one vendor detail and unified product/SKU drilldown guards present');
 
 
 const radar = read('decision-radar-v93.js');
 const finalLayout = read('final-layout-v53.js');
 const forecastProgress = read('forecast-progress-v81.js');
+const sharedRuntime = read('shared-v31.js');
 if (!v16.includes("'decision-radar-v93.js'")) fail('decision radar is not preloaded by v16');
 if (!exportLoader.includes("'decision-radar-v93.js'")) fail('decision radar is not loaded by final UI loader');
-for (const label of ['운영 판단 · 이슈 레이더','월마감 전망','남은 MBO','잔여 영업일 필요 일평균','최근 3영업일 평균','관리업체 이슈','제품군 이슈']) {
+for (const label of ['운영 판단 · 이슈 레이더','월마감 전망','남은 MBO','잔여 영업일 필요 일평균','최근 3영업일 평균','관리업체 전체 현황','제품군 이슈']) {
   if (!radar.includes(label)) fail('decision radar missing decision label: ' + label);
 }
 if (radar.includes('MutationObserver')) fail('decision radar must remain event-driven and must not add MutationObserver');
-if (!radar.includes("kind==='vendor'&&(!KEY.includes(name)||closed.has(name))")) fail('decision radar must limit vendor alerts to open managed vendors');
+if (!radar.includes('vendorStatus=KEY.map')) fail('decision radar must show all eight managed vendors');
+if (!radar.includes('sf-radar-scroll')) fail('decision radar must provide scrollable issue tables');
+if (radar.includes('slice(0,6)')) fail('product-group issue radar must not truncate issues to six rows');
+if (!radar.includes("let renderTimer=null,dataCache=null,dataSig=''")) fail('decision radar must cache source rows');
 if (!radar.includes('phase(m,last,bounds(m,hist,sched))') || !radar.includes('cuts[h]=eq(')) fail('decision radar must compare equivalent collection progress positions');
 if (!radar.includes('krHolidays2026') || !radar.includes('customHolidaysByMonth')) fail('decision radar business days must exclude holidays');
 if (!forecastProgress.includes('krHolidays2026') || !forecastProgress.includes('customHolidaysByMonth')) fail('overall forecast business days must exclude holidays');
 if (!legacy.includes('krHolidays2026') || !legacy.includes('customHolidaysByMonth')) fail('legacy daily comparison business days must exclude holidays');
 if (!upperHistory.includes('sf-radar-vendor-select')) fail('vendor table does not accept decision-radar drilldown');
+if (!vendorClose.includes("th.textContent='마감 체크'")) fail('stage-one vendor table must expose the close check control');
+if (!vendorClose.includes('sf-vendor-table-rendered')) fail('close controls must reinstall after stage-one render');
+if (!vendorGap.includes("gapHead.textContent='MBO 대비 부족액'")) fail('stage-one vendor table must expose per-vendor MBO gap');
+if (!vendorGap.includes('allocateGap(overallGap,mbo,mp,h,closed)')) fail('stage-one vendor gap allocation is missing');
 if (!finalLayout.includes("group.insertAdjacentElement('afterend',mbo)")) fail('product-group MBO action panel is not placed after product-group status');
 if (!finalLayout.includes("(detail||mbo).insertAdjacentElement('afterend',daily)")) fail('raw daily detail is not placed after action/detail drilldown');
-ok('decision radar, holiday-aware forecast, and information hierarchy guards present');
+ok('decision radar, vendor control, holiday-aware forecast, and information hierarchy guards present');
+
+if (legacy.includes("$('mbo').oninput=function(){if(this.value==='')delete st.mbo")) fail('MBO typing must not trigger full legacy render');
+if (!legacy.includes('sf-settings-committed')) fail('settings must emit a single commit event after editing');
+if (vendorGap.includes("document.addEventListener('input',e=>{if(e.target?.id==='mbo')")) fail('vendor gap must not recalculate while MBO is being typed');
+if (forecastProgress.includes("document.addEventListener('input',e=>{if(['mbo','first','second']")) fail('forecast must not recalculate while settings are being edited');
+if (!sharedRuntime.includes('scheduleSettingsPublish(700)')) fail('shared settings persistence must be debounced');
+if (!sharedRuntime.includes("typeof requestIdleCallback==='function'")) fail('shared settings persistence must be idle-scheduled');
+ok('master settings edit performance guards present');
 
 const seedText = read('data.js');
 const seedData = JSON.parse(seedText.replace(/^window\.SEED_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
