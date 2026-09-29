@@ -6,15 +6,15 @@ const $=s=>document.querySelector(s),N=v=>Number(v||0);
 const W=v=>(N(v)/1e8).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1});
 const PC=v=>Number.isFinite(v)?(v*100).toFixed(1)+'%':'-';
 const X=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let renderTimer=null;
+let renderTimer=null,dataCache=null,dataSig='';
 
 function state(){try{return JSON.parse(localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}')}catch(e){return{}}}
 function closeState(){let local={};try{local=JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){}const shared=window.__SF_SHARED_CLOSED;return shared&&typeof shared==='object'?{...local,...shared}:local}
 function uploads(){const z=state(),a=z.up||z.uploadRows||z.uploads;return Array.isArray(a)&&a.length?a:(window.__SF_SHARED_UPLOADS||[])}
-function allRows(){const up=uploads().map(r=>({d:r.d||r.date,v:r.v||r.vendor||'',g:r.g||r.productGroup||'미분류',m:r.m||r.material||'미분류',a:N(r.a??r.amount)})),rep=new Set(up.map(r=>r.d)),seed=(window.SEED_DATA?.dailyRecords||[]).map(r=>({d:r.date,v:r.vendor||'',g:r.productGroup||'미분류',m:r.material||'미분류',a:N(r.amount)}));return seed.filter(r=>r.d&&!rep.has(r.d)).concat(up)}
+function data(){const up=uploads(),seedRaw=window.SEED_DATA?.dailyRecords||[],sig=seedRaw.length+'|'+up.length+'|'+(window.__SF_SHARED_LAST||'');if(dataCache&&sig===dataSig)return dataCache;const normUp=up.map(r=>({d:r.d||r.date,v:r.v||r.vendor||'',g:r.g||r.productGroup||'미분류',m:r.m||r.material||'미분류',a:N(r.a??r.amount)})),rep=new Set(normUp.map(r=>r.d)),all=seedRaw.map(r=>({d:r.date,v:r.vendor||'',g:r.productGroup||'미분류',m:r.material||'미분류',a:N(r.amount)})).filter(r=>r.d&&!rep.has(r.d)).concat(normUp),byMonth={};all.forEach(r=>{const m=r.d?.slice(0,7);if(m)(byMonth[m]||(byMonth[m]=[])).push(r)});dataCache={all,byMonth,months:Object.keys(byMonth).sort()};dataSig=sig;return dataCache}
 const cur=()=>$('#month')?.value||'';
-function monthRows(m){return allRows().filter(r=>r.d?.slice(0,7)===m)}
-function months(){return[...new Set(allRows().map(r=>r.d?.slice(0,7)).filter(Boolean))].sort()}
+function monthRows(m){return data().byMonth[m]||[]}
+function months(){return data().months}
 function total(m){return monthRows(m).reduce((s,r)=>s+N(r.a),0)}
 function daily(m){const o={};monthRows(m).forEach(r=>{o[r.d]=(o[r.d]||0)+N(r.a)});return o}
 function latest(m){return Object.keys(daily(m)).sort().at(-1)||''}
