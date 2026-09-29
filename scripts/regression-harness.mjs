@@ -116,7 +116,7 @@ const runtimeJs = [
   'upper-history-v39.js','vendor-mbo-gap-v43.js','vendor-close-ui-v67.js',
   'export-v19.js','export-v21.js','ui-streamline-v46.js','detail-shell-v61.js',
   'final-layout-v53.js','unified-loader-v74.js','unified-final-v73.js',
-  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','vendor-excel-format-v48.js','decision-radar-v93.js'
+  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','vendor-excel-format-v48.js','decision-radar-v93.js','master-text-editor-v95.js'
 ];
 for (const file of runtimeJs) {
   try {
@@ -191,6 +191,30 @@ if (forecastProgress.includes("document.addEventListener('input',e=>{if(['mbo','
 if (!sharedRuntime.includes('scheduleSettingsPublish(700)')) fail('shared settings persistence must be debounced');
 if (!sharedRuntime.includes("typeof requestIdleCallback==='function'")) fail('shared settings persistence must be idle-scheduled');
 ok('master settings edit performance guards present');
+
+
+const textEditor = read('master-text-editor-v95.js');
+const kpiLayout = read('kpi-layout-v37.js');
+if (!v16.includes("'master-text-editor-v95.js'")) fail('master text editor is not preloaded by v16');
+if (!exportLoader.includes("'master-text-editor-v95.js'")) fail('master text editor is not loaded by final UI loader');
+if (!bootstrap.includes('window.__SF_UI_TEXT')) fail('bootstrap does not expose shared uiText');
+if (!sharedRuntime.includes('window.__sfPublishUiText')) fail('shared runtime does not publish dashboard text settings');
+if (!sharedRuntime.includes("'Update shared dashboard text settings'")) fail('dashboard text settings do not have a dedicated shared commit');
+if (textEditor.includes('MutationObserver')) fail('master text editor must remain event-driven');
+for (const key of ['dashboard.title','dashboard.subtitle','kpi.mbo','kpi.current','kpi.forecast','section.radar.title','section.vendor.title','section.group.title','section.mbo.title','section.sku.title','section.daily.title']) {
+  if (!textEditor.includes(key)) fail('master text editor missing editable field: ' + key);
+}
+if (!textEditor.includes("id='sfTextEditBtn'") && !textEditor.includes("id=\"sfTextEditBtn\"") && !textEditor.includes("b.id='sfTextEditBtn'")) fail('master text editor button is missing');
+if (!textEditor.includes("window.addEventListener('sf-master-mode-change'")) fail('text editor is not gated by master mode changes');
+if (!textEditor.includes("typeof window.__sfPublishUiText!=='function'")) fail('text editor does not use shared uiText persistence');
+if (!kpiLayout.includes('data.kpiKey') && !kpiLayout.includes('dataset.kpiKey')) fail('KPI cards do not have stable semantic keys');
+for (const key of ['mbo','current','mboRate','mboGap','paceTarget','paceGap','forecast','forecastRate']) {
+  if (!kpiLayout.includes("'" + key + "'")) fail('KPI stable key missing: ' + key);
+}
+if (!kpiLayout.includes("sf-kpi-layout-updated")) fail('KPI layout does not notify text overrides after rerender');
+if (!radar.includes("sf-radar-rendered")) fail('radar does not notify text overrides after rerender');
+if (!finalLayout.includes("sf-layout-updated")) fail('final layout does not notify text overrides after title reset');
+ok('master text editor, stable KPI keys, and shared uiText persistence guards present');
 
 const seedText = read('data.js');
 const seedData = JSON.parse(seedText.replace(/^window\.SEED_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
