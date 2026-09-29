@@ -78,7 +78,7 @@ if (!masterUpload.includes("mergeMode:merged.mode")) fail('master upload must re
 if (masterUpload.includes("state.up=state.up.filter(r=>String(r.d||r.date||'').slice(0,7)!==p.month)")) fail('master upload must not blindly replace the whole month');
 if (!masterUpload.includes("window.dispatchEvent(new CustomEvent('sf-data-refreshed'")) fail('verified upload must refresh the live dashboard without reload');
 if (masterUpload.includes("location.replace(location.pathname+'?sync='")) fail('upload flow must not rely on immediate reload after GitHub write');
-if (!legacy.includes("window.addEventListener('sf-data-refreshed'")) fail('legacy KPI state must consume verified refreshed uploads');
+if (!read('v16-legacy.js').includes("window.addEventListener('sf-data-refreshed'")) fail('legacy KPI state must consume verified refreshed uploads');
 ok('shared upload freshness and partial-month merge guards present');
 
 const latestSrc = sources.slice().sort((a,b)=>String(a.lastDate||a.date||'').localeCompare(String(b.lastDate||b.date||''))).at(-1);
