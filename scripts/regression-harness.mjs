@@ -84,10 +84,10 @@ ok('shared upload freshness and partial-month merge guards present');
 
 const uploadDiff = read('upload-diff-v99.js');
 if (!v16.includes("'upload-diff-v99.js?v=" + version + "'")) fail('core preloader is missing upload diff inspector');
-if (!sharedRuntime.includes('buildUploadDiff(previousRows,nextRows,sourceFiles)')) fail('shared runtime must calculate upload-to-upload row diffs');
-if (!sharedRuntime.includes('lastUploadDiff=buildUploadDiff(previous.uploads||[],payload.up||[],sourceFiles)')) fail('sales publisher must compare against the authoritative previous shared upload');
-if (!sharedRuntime.includes('lastUploadDiff};return putShared')) fail('sales publisher must persist lastUploadDiff with the shared payload');
-if (!sharedRuntime.includes('window.__SF_LAST_UPLOAD_DIFF=got.lastUploadDiff||null')) fail('verified shared write must expose the latest upload diff');
+if (!read('shared-v31.js').includes('buildUploadDiff(previousRows,nextRows,sourceFiles)')) fail('shared runtime must calculate upload-to-upload row diffs');
+if (!read('shared-v31.js').includes('lastUploadDiff=buildUploadDiff(previous.uploads||[],payload.up||[],sourceFiles)')) fail('sales publisher must compare against the authoritative previous shared upload');
+if (!read('shared-v31.js').includes('lastUploadDiff};return putShared')) fail('sales publisher must persist lastUploadDiff with the shared payload');
+if (!read('shared-v31.js').includes('window.__SF_LAST_UPLOAD_DIFF=got.lastUploadDiff||null')) fail('verified shared write must expose the latest upload diff');
 if (!bootstrap.includes('window.__SF_LAST_UPLOAD_DIFF=shared.lastUploadDiff||null')) fail('bootstrap must hydrate persisted upload diff');
 if (!uploadDiff.includes("id='sfUploadDiffBtn'") && !uploadDiff.includes("b.id='sfUploadDiffBtn'")) fail('upload diff inspector button is missing');
 if (!uploadDiff.includes('직전 업로드 대비 증감')) fail('upload diff inspector label is missing');
