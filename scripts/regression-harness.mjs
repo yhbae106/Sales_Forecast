@@ -233,6 +233,14 @@ if (legacy.includes('function render(){cards();vendor();groups();detail();compar
 if (legacy.includes('function dayTable()')) fail('retired dayTable code is still bundled');
 ok('visual readability and initial-render performance guards present');
 
+const uiStreamline = read('ui-streamline-v46.js');
+if (!radar.includes('3개월 평균 '+"'"+'+W(a.recent3CloseAvg)')) fail('month-close chart is missing the three-month average benchmark label');
+if (!radar.includes('class=\\"average\\"')) fail('month-close chart legend is missing the three-month average benchmark');
+if (unified.includes('MutationObserver')) fail('unified renderer still contains obsolete MutationObserver logic');
+if (unifiedLoader.includes('QuietObserver') || unifiedLoader.includes('window.MutationObserver=')) fail('unified loader still monkeypatches global MutationObserver');
+if (uiStreamline.includes('dailyTable') || uiStreamline.includes('collapseDaily')) fail('retired daily-detail UI code is still bundled');
+ok('three-month visual benchmark and observer-cleanup guards present');
+
 const seedText = read('data.js');
 const seedData = JSON.parse(seedText.replace(/^window\.SEED_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
 if (!seedData.krHolidays2026 || !Object.keys(seedData.krHolidays2026).length) fail('KR holiday calendar is missing from seed data');
