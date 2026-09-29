@@ -1,146 +1,60 @@
 (()=>{'use strict';
 const KEY=['백제약품영등포지점','백제약품(주)영남본부','대전백제약품','백제약품(주)원주지점','(주)인천약품','(주)복산나이스','유진약품(주)','아이팜코리아(주)'];
+const REGION={'백제약품영등포지점':'수도권2,3','백제약품(주)영남본부':'경남','대전백제약품':'충청','백제약품(주)원주지점':'강원','(주)인천약품':'수도권1','(주)복산나이스':'수도권4,부산','유진약품(주)':'전라','아이팜코리아(주)':'대구'};
 const STORE='sales_forecast_v16',CLOSE_KEY='sales_forecast_vendor_closed_v66';
 const $=s=>document.querySelector(s),N=v=>Number(v||0);
 const W=v=>(N(v)/1e8).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1});
 const PC=v=>Number.isFinite(v)?(v*100).toFixed(1)+'%':'-';
 const X=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let renderTimer=null;
+let renderTimer=null,dataCache=null,dataSig='';
 
 function state(){try{return JSON.parse(localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}')}catch(e){return{}}}
 function closeState(){let local={};try{local=JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){}const shared=window.__SF_SHARED_CLOSED;return shared&&typeof shared==='object'?{...local,...shared}:local}
 function uploads(){const z=state(),a=z.up||z.uploadRows||z.uploads;return Array.isArray(a)&&a.length?a:(window.__SF_SHARED_UPLOADS||[])}
-function allRows(){
-  const up=uploads().map(r=>({d:r.d||r.date,v:r.v||r.vendor||'',g:r.g||r.productGroup||'미분류',m:r.m||r.material||'미분류',a:N(r.a??r.amount)}));
-  const rep=new Set(up.map(r=>r.d));
-  const seed=(window.SEED_DATA?.dailyRecords||[]).map(r=>({d:r.date,v:r.vendor||'',g:r.productGroup||'미분류',m:r.material||'미분류',a:N(r.amount)}));
-  return seed.filter(r=>r.d&&!rep.has(r.d)).concat(up);
-}
+function data(){const up=uploads(),seedRaw=window.SEED_DATA?.dailyRecords||[],sig=seedRaw.length+'|'+up.length+'|'+(window.__SF_SHARED_LAST||'');if(dataCache&&sig===dataSig)return dataCache;const normUp=up.map(r=>({d:r.d||r.date,v:r.v||r.vendor||'',g:r.g||r.productGroup||'미분류',m:r.m||r.material||'미분류',a:N(r.a??r.amount)})),rep=new Set(normUp.map(r=>r.d)),all=seedRaw.map(r=>({d:r.date,v:r.vendor||'',g:r.productGroup||'미분류',m:r.material||'미분류',a:N(r.amount)})).filter(r=>r.d&&!rep.has(r.d)).concat(normUp),byMonth={};all.forEach(r=>{const m=r.d?.slice(0,7);if(m)(byMonth[m]||(byMonth[m]=[])).push(r)});dataCache={all,byMonth,months:Object.keys(byMonth).sort()};dataSig=sig;return dataCache}
 const cur=()=>$('#month')?.value||'';
-function monthRows(m){return allRows().filter(r=>r.d?.slice(0,7)===m)}
-function months(){return[...new Set(allRows().map(r=>r.d?.slice(0,7)).filter(Boolean))].sort()}
+function monthRows(m){return data().byMonth[m]||[]}
+function months(){return data().months}
 function total(m){return monthRows(m).reduce((s,r)=>s+N(r.a),0)}
 function daily(m){const o={};monthRows(m).forEach(r=>{o[r.d]=(o[r.d]||0)+N(r.a)});return o}
 function latest(m){return Object.keys(daily(m)).sort().at(-1)||''}
 function cum(m,d){let s=0;for(const[x,v]of Object.entries(daily(m)))if(x<=d)s+=N(v);return s}
-function holidaySet(m){
-  const out=new Set(),kr=window.SEED_DATA?.krHolidays2026||{},custom=window.SEED_DATA?.customHolidaysByMonth||{};
-  Object.keys(kr).forEach(d=>{if(d.slice(0,7)===m)out.add(d)});
-  const x=custom[m];
-  if(Array.isArray(x))x.forEach(d=>out.add(String(d)));
-  else if(x&&typeof x==='object')Object.keys(x).forEach(d=>out.add(d));
-  return out;
-}
-function biz(m){
-  const[y,mo]=m.split('-').map(Number),a=[],hol=holidaySet(m);
-  for(let d=new Date(Date.UTC(y,mo-1,1));d.getUTCMonth()===mo-1;d.setUTCDate(d.getUTCDate()+1)){
-    const wd=d.getUTCDay(),ds=y+'-'+String(mo).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
-    if(wd!==0&&wd!==6&&!hol.has(ds))a.push(ds);
-  }
-  return a;
-}
+function holidaySet(m){const out=new Set(),kr=window.SEED_DATA?.krHolidays2026||{},custom=window.SEED_DATA?.customHolidaysByMonth||{};Object.keys(kr).forEach(d=>{if(d.slice(0,7)===m)out.add(d)});const x=custom[m];if(Array.isArray(x))x.forEach(d=>out.add(String(d)));else if(x&&typeof x==='object')Object.keys(x).forEach(d=>out.add(d));return out}
+function biz(m){const[y,mo]=m.split('-').map(Number),a=[],hol=holidaySet(m);for(let d=new Date(Date.UTC(y,mo-1,1));d.getUTCMonth()===mo-1;d.setUTCDate(d.getUTCDate()+1)){const wd=d.getUTCDay(),ds=y+'-'+String(mo).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');if(wd!==0&&wd!==6&&!hol.has(ds))a.push(ds)}return a}
 function schedIndex(m,date){if(!date)return null;const b=biz(m),n=b.filter(x=>x<=date).length;return Math.max(0,Math.min(b.length-1,n-1))}
-function inferredBounds(m,hist,sched){
-  const b=biz(m),den=Math.max(1,b.length-1),r=[[],[]];
-  hist.forEach(h=>{const hb=biz(h),s=sched[h]||[];[0,1].forEach(k=>{const ix=schedIndex(h,s[k]);if(ix!=null&&hb.length>1)r[k].push(ix/(hb.length-1))})});
-  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
-  let r1=avg(r[0])??.55,r2=avg(r[1])??.75,a=Math.round(den*r1),c=Math.round(den*r2);
-  a=Math.max(1,Math.min(Math.max(1,b.length-3),a));c=Math.max(a+1,Math.min(Math.max(a+1,b.length-2),c));
-  return[a,c];
-}
+function inferredBounds(m,hist,sched){const b=biz(m),den=Math.max(1,b.length-1),r=[[],[]];hist.forEach(h=>{const hb=biz(h),s=sched[h]||[];[0,1].forEach(k=>{const ix=schedIndex(h,s[k]);if(ix!=null&&hb.length>1)r[k].push(ix/(hb.length-1))})});const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;let r1=avg(r[0])??.55,r2=avg(r[1])??.75,a=Math.round(den*r1),c=Math.round(den*r2);a=Math.max(1,Math.min(Math.max(1,b.length-3),a));c=Math.max(a+1,Math.min(Math.max(a+1,b.length-2),c));return[a,c]}
 function bounds(m,hist,sched){const s=sched[m]||[],a=schedIndex(m,s[0]),c=schedIndex(m,s[1]);return a!=null&&c!=null&&c>a?[a,c]:inferredBounds(m,hist,sched)}
 function phase(m,date,bnd){const b=biz(m),i=Math.max(0,b.filter(x=>x<=date).length-1),a=bnd[0],c=bnd[1];return i<=a?[0,a?i/a:0]:i<=c?[1,(i-a)/Math.max(1,c-a)]:[2,(i-c)/Math.max(1,b.length-1-c)]}
 function eq(m,ph,bnd){const b=biz(m),a=bnd[0],c=bnd[1];let i=ph[0]===0?Math.round(a*ph[1]):ph[0]===1?Math.round(a+(c-a)*ph[1]):Math.round(c+(b.length-1-c)*ph[1]);return b[Math.max(0,Math.min(b.length-1,i))]||''}
-function entityMap(m,kind,cut){
-  const o={};monthRows(m).forEach(r=>{if(cut&&r.d>cut)return;const k=kind==='vendor'?r.v:r.g;if(k)o[k]=(o[k]||0)+N(r.a)});return o;
-}
-function classify(now,expected){
-  const diff=now-expected,ratio=expected?now/expected:(now>0?9:0),material=Math.max(now,expected);
-  if(material<3e7)return null;
-  if(ratio<.70&&diff<-2e7)return{signal:'부진',tone:'bad',score:Math.abs(diff)*(1+(.70-ratio))};
-  if(ratio>1.45&&diff>2e7)return{signal:'급증',tone:'up',score:Math.abs(diff)*(1+(ratio-1.45)*.4)};
-  if(ratio<.85&&diff<-1e7)return{signal:'주의',tone:'warn',score:Math.abs(diff)*.7};
-  if(ratio>1.25&&diff>1e7)return{signal:'증가',tone:'up',score:Math.abs(diff)*.6};
-  return null;
-}
+function entityMap(m,kind,cut){const o={};monthRows(m).forEach(r=>{if(cut&&r.d>cut)return;const k=kind==='vendor'?r.v:r.g;if(k)o[k]=(o[k]||0)+N(r.a)});return o}
+function classify(now,expected){const diff=now-expected,ratio=expected?now/expected:(now>0?9:0),material=Math.max(now,expected);if(material<3e7)return null;if(ratio<.70&&diff<-2e7)return{signal:'부진',tone:'bad',score:Math.abs(diff)*(1+(.70-ratio))};if(ratio>1.45&&diff>2e7)return{signal:'급증',tone:'up',score:Math.abs(diff)*(1+(ratio-1.45)*.4)};if(ratio<.85&&diff<-1e7)return{signal:'주의',tone:'warn',score:Math.abs(diff)*.7};if(ratio>1.25&&diff>1e7)return{signal:'증가',tone:'up',score:Math.abs(diff)*.6};return null}
 function analyze(){
   const m=cur(),z=state(),last=latest(m),allMonths=months(),hist=allMonths.filter(x=>x<m&&total(x)>0).slice(-5),sched=z.sched||window.__sfSharedMeta?.sched||{};
   if(!m||!last||!hist.length)return null;
-  const ph=phase(m,last,bounds(m,hist,sched)),cuts={};
-  hist.forEach(h=>cuts[h]=eq(h,ph,bounds(h,hist,sched)));
-  const progressVals=hist.map(h=>total(h)?cum(h,cuts[h])/total(h):0).filter(v=>Number.isFinite(v)&&v>=0&&v<1.4);
-  const progress=progressVals.length?progressVals.reduce((a,b)=>a+b,0)/progressVals.length:0;
+  const ph=phase(m,last,bounds(m,hist,sched)),cuts={};hist.forEach(h=>cuts[h]=eq(h,ph,bounds(h,hist,sched)));
+  const progressVals=hist.map(h=>total(h)?cum(h,cuts[h])/total(h):0).filter(v=>Number.isFinite(v)&&v>=0&&v<1.4),progress=progressVals.length?progressVals.reduce((a,b)=>a+b,0)/progressVals.length:0;
   const current=total(m),mboEok=z.mbo?.[m]??$('#mbo')?.value,mbo=N(mboEok)*1e8,forecast=progress>0?current/progress:null,forecastRate=mbo&&forecast!=null?forecast/mbo:null;
-  const remain=mbo?Math.max(0,mbo-current):0,remainingBiz=biz(m).filter(d=>d>last).length,needDaily=remain>0?(remainingBiz?remain/remainingBiz:remain):0;
-  const ds=Object.keys(daily(m)).sort(),last3=ds.slice(-3),recent3=last3.length?last3.reduce((s,d)=>s+N(daily(m)[d]),0)/last3.length:0,needVsRecent=recent3&&needDaily?needDaily/recent3:0;
-  const closed=new Set(closeState()[m]||[]);
-  function issues(kind){
-    const currentMap=entityMap(m,kind,last),histMaps={};
-    hist.forEach(h=>histMaps[h]=entityMap(h,kind,cuts[h]));
-    const names=[...new Set(Object.keys(currentMap).concat(hist.flatMap(h=>Object.keys(histMaps[h]||{}))))];
-    return names.map(name=>{
-      if(kind==='vendor'&&(!KEY.includes(name)||closed.has(name)))return null;
-      const expected=hist.reduce((s,h)=>s+N(histMaps[h]?.[name]),0)/hist.length,now=N(currentMap[name]),c=classify(now,expected);
-      return c?{name,expected,now,diff:now-expected,ratio:expected?now/expected:0,signal:c.signal,tone:c.tone,score:c.score}:null;
-    }).filter(Boolean).sort((a,b)=>b.score-a.score);
-  }
-  let closeSignal='관찰',closeTone='neutral';
-  if(mbo){
-    if(forecastRate!=null&&forecastRate<.95||needVsRecent>1.25){closeSignal='위험';closeTone='bad'}
-    else if(forecastRate!=null&&forecastRate<1||needVsRecent>1){closeSignal='주의';closeTone='warn'}
-    else{closeSignal='달성 가능';closeTone='good'}
-  }else closeSignal='MBO 미입력';
-  return{month:m,last,hist,cuts,progress,current,mbo,forecast,forecastRate,remain,remainingBiz,needDaily,recent3,needVsRecent,closeSignal,closeTone,vendorIssues:issues('vendor'),groupIssues:issues('group')};
+  const remain=mbo?Math.max(0,mbo-current):0,remainingBiz=biz(m).filter(d=>d>last).length,needDaily=remain>0?(remainingBiz?remain/remainingBiz:remain):0,ds=Object.keys(daily(m)).sort(),last3=ds.slice(-3),recent3=last3.length?last3.reduce((s,d)=>s+N(daily(m)[d]),0)/last3.length:0,needVsRecent=recent3&&needDaily?needDaily/recent3:0;
+  const closed=new Set(closeState()[m]||[]),curV=entityMap(m,'vendor',last),histV={};hist.forEach(h=>histV[h]=entityMap(h,'vendor',cuts[h]));
+  const vendorStatus=KEY.map(name=>{const expected=hist.reduce((s,h)=>s+N(histV[h]?.[name]),0)/hist.length,now=N(curV[name]),c=classify(now,expected),isClosed=closed.has(name);return{name,region:REGION[name]||'',expected,now,diff:now-expected,ratio:expected?now/expected:0,signal:isClosed?'마감완료':(c?.signal||'정상'),tone:isClosed?'closed':(c?.tone||'good'),closed:isClosed}});
+  const curG=entityMap(m,'group',last),histG={};hist.forEach(h=>histG[h]=entityMap(h,'group',cuts[h]));const names=[...new Set(Object.keys(curG).concat(hist.flatMap(h=>Object.keys(histG[h]||{}))))];
+  const groupIssues=names.map(name=>{const expected=hist.reduce((s,h)=>s+N(histG[h]?.[name]),0)/hist.length,now=N(curG[name]),c=classify(now,expected);return c?{name,expected,now,diff:now-expected,ratio:expected?now/expected:0,signal:c.signal,tone:c.tone,score:c.score}:null}).filter(Boolean).sort((a,b)=>b.score-a.score);
+  let closeSignal='관찰',closeTone='neutral';if(mbo){if(forecastRate!=null&&forecastRate<.95||needVsRecent>1.25){closeSignal='위험';closeTone='bad'}else if(forecastRate!=null&&forecastRate<1||needVsRecent>1){closeSignal='주의';closeTone='warn'}else{closeSignal='달성 가능';closeTone='good'}}else closeSignal='MBO 미입력';
+  return{month:m,last,hist,progress,current,mbo,forecast,forecastRate,remain,remainingBiz,needDaily,recent3,needVsRecent,closeSignal,closeTone,vendorStatus,groupIssues};
 }
-function style(){
-  if($('#decisionRadarV93Style'))return;
-  const s=document.createElement('style');s.id='decisionRadarV93Style';
-  s.textContent='.sf-radar{border-color:rgba(56,189,248,.24)!important}.sf-radar .head{margin-bottom:14px!important}.sf-radar-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}.sf-radar-kpi{background:rgba(15,23,42,.42);border:1px solid rgba(148,163,184,.14);border-radius:12px;padding:12px 13px;min-height:88px}.sf-radar-kpi .k{font-size:10.5px;color:#94A3B8;font-weight:800}.sf-radar-kpi .v{margin-top:7px;font-size:20px;font-weight:900;letter-spacing:-.03em;color:#E2E8F0}.sf-radar-kpi .s{margin-top:5px;font-size:10px;color:#8297AC;line-height:1.4}.sf-radar-good{color:#34D399!important}.sf-radar-warn{color:#FBBF24!important}.sf-radar-bad{color:#FB7185!important}.sf-radar-up{color:#60A5FA!important}.sf-radar-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sf-radar-box{background:rgba(10,18,32,.25);border:1px solid rgba(148,163,184,.12);border-radius:12px;overflow:hidden}.sf-radar-box h4{margin:0;padding:11px 12px 4px;font-size:12px;color:#E2E8F0}.sf-radar-box p{margin:0;padding:0 12px 9px;font-size:9.5px;color:#7F93A9}.sf-radar-box table{font-size:10.5px}.sf-radar-box th{font-size:9.5px;padding:7px 8px!important}.sf-radar-box td{padding:8px!important}.sf-radar-link{border:0;background:none;color:#E2E8F0;font:inherit;font-weight:800;padding:0;cursor:pointer;text-align:left}.sf-radar-link:hover{color:#67E8F9;text-decoration:underline}.sf-radar-signal{display:inline-block;padding:2px 6px;border-radius:999px;font-size:9px;font-weight:900;border:1px solid currentColor}.sf-radar-empty{padding:18px 12px!important;text-align:center!important;color:#8297AC!important}.sf-radar-note{font-size:10px;color:#7DD3FC;font-weight:800}@media(max-width:1050px){.sf-radar-kpis,.sf-radar-grid{grid-template-columns:1fr 1fr}}@media(max-width:650px){.sf-radar-kpis,.sf-radar-grid{grid-template-columns:1fr}}';
-  document.head.appendChild(s);
-}
-function toneClass(t){return t==='good'?'sf-radar-good':t==='bad'?'sf-radar-bad':t==='warn'?'sf-radar-warn':t==='up'?'sf-radar-up':''}
-function issueTable(items,kind){
-  if(!items.length)return'<div class="sf-radar-empty">현재 기준 우선 확인 이슈가 없습니다.</div>';
-  const top=items.slice(0,6);
-  return'<table><thead><tr><th>대상</th><th>신호</th><th>현재</th><th>동일위치 기준</th><th>편차</th><th>수준</th></tr></thead><tbody>'+
-    top.map(x=>'<tr><td><button type="button" class="sf-radar-link" data-radar-'+kind+'="'+X(x.name)+'">'+X(x.name)+'</button></td><td><span class="sf-radar-signal '+toneClass(x.tone)+'">'+x.signal+'</span></td><td>'+W(x.now)+'</td><td>'+W(x.expected)+'</td><td class="'+(x.diff>=0?'sf-radar-up':'sf-radar-bad')+'">'+(x.diff>=0?'+':'')+W(x.diff)+'</td><td class="'+toneClass(x.tone)+'">'+PC(x.ratio)+'</td></tr>').join('')+
-    '</tbody></table>';
-}
-function render(){
-  const a=analyze();if(!a)return;
-  style();
-  let sec=$('#decisionRadarV93');
-  if(!sec){sec=document.createElement('section');sec.id='decisionRadarV93';sec.className='panel sf-radar';const anchor=$('#kpiFlowSummary')||$('#cards');anchor?.insertAdjacentElement('afterend',sec)}
-  if(!sec)return;
-  const histText=a.hist.length?(a.hist[0].slice(2).replace('-','.')+'~'+a.hist.at(-1).slice(2).replace('-','.')):'-';
-  const forecastText=a.forecast==null?'-':W(a.forecast)+'억';
-  const closeSub=a.mbo?(forecastText+' 예상 · MBO '+W(a.mbo)+'억'+(a.forecastRate!=null?' · '+PC(a.forecastRate):'')):'월 MBO를 입력하면 판단합니다.';
-  const needSub=a.remain>0?('잔여 '+a.remainingBiz+'영업일 · 남은 '+W(a.remain)+'억'):'MBO 이상 달성';
-  const recentSub=a.needDaily>0&&a.recent3?('필요 일평균은 최근3일의 '+PC(a.needDaily/a.recent3)):'최근 실제 매출 기준';
-  sec.innerHTML='<div class="head"><div><h3>운영 판단 · 이슈 레이더</h3><p>월마감 가능성과 이상 징후를 먼저 확인한 뒤 아래 업체 → 제품군 → SKU로 내려갑니다. <span class="sf-radar-note">비교기준 '+histText+' 확정월 · 동일 수금 진행위치</span></p></div></div>'+
-    '<div class="sf-radar-kpis">'+
-      '<div class="sf-radar-kpi"><div class="k">월마감 전망</div><div class="v '+toneClass(a.closeTone)+'">'+a.closeSignal+'</div><div class="s">'+closeSub+'</div></div>'+
-      '<div class="sf-radar-kpi"><div class="k">남은 MBO</div><div class="v '+(a.remain>0?'sf-radar-warn':'sf-radar-good')+'">'+W(a.remain)+'억</div><div class="s">현재 '+W(a.current)+'억'+(a.mbo?' / 목표 '+W(a.mbo)+'억':'')+'</div></div>'+
-      '<div class="sf-radar-kpi"><div class="k">잔여 영업일 필요 일평균</div><div class="v '+(a.needVsRecent>1?'sf-radar-bad':'sf-radar-good')+'">'+W(a.needDaily)+'억</div><div class="s">'+needSub+'</div></div>'+
-      '<div class="sf-radar-kpi"><div class="k">최근 3영업일 평균</div><div class="v">'+W(a.recent3)+'억</div><div class="s">'+recentSub+'</div></div>'+
-    '</div>'+
-    '<div class="sf-radar-grid">'+
-      '<div class="sf-radar-box"><h4>관리업체 이슈 · '+a.vendorIssues.length+'건</h4><p>8개 관리업체 중 마감완료 업체는 조치대상에서 제외합니다.</p>'+issueTable(a.vendorIssues,'vendor')+'</div>'+
-      '<div class="sf-radar-box"><h4>제품군 이슈 · '+a.groupIssues.length+'건</h4><p>동일 진행위치 대비 ±변화와 금액 영향도를 함께 반영해 우선순위를 표시합니다.</p>'+issueTable(a.groupIssues,'group')+'</div>'+
-    '</div>';
-}
+function style(){if($('#decisionRadarV93Style'))return;const s=document.createElement('style');s.id='decisionRadarV93Style';s.textContent='.sf-radar{border-color:rgba(56,189,248,.24)!important}.sf-radar .head{margin-bottom:14px!important}.sf-radar-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}.sf-radar-kpi{background:rgba(15,23,42,.42);border:1px solid rgba(148,163,184,.14);border-radius:12px;padding:12px 13px;min-height:88px}.sf-radar-kpi .k{font-size:10.5px;color:#94A3B8;font-weight:800}.sf-radar-kpi .v{margin-top:7px;font-size:20px;font-weight:900;letter-spacing:-.03em;color:#E2E8F0}.sf-radar-kpi .s{margin-top:5px;font-size:10px;color:#8297AC;line-height:1.4}.sf-radar-good{color:#34D399!important}.sf-radar-warn{color:#FBBF24!important}.sf-radar-bad{color:#FB7185!important}.sf-radar-up{color:#60A5FA!important}.sf-radar-closed{color:#94A3B8!important}.sf-radar-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sf-radar-box{background:rgba(10,18,32,.25);border:1px solid rgba(148,163,184,.12);border-radius:12px;overflow:hidden}.sf-radar-box h4{margin:0;padding:11px 12px 4px;font-size:12px;color:#E2E8F0}.sf-radar-box p{margin:0;padding:0 12px 9px;font-size:9.5px;color:#7F93A9}.sf-radar-scroll{max-height:330px;overflow:auto;scrollbar-gutter:stable}.sf-radar-scroll th{position:sticky;top:0;z-index:3}.sf-radar-box table{font-size:10.5px}.sf-radar-box th{font-size:9.5px;padding:7px 8px!important}.sf-radar-box td{padding:8px!important}.sf-radar-link{border:0;background:none;color:#E2E8F0;font:inherit;font-weight:800;padding:0;cursor:pointer;text-align:left}.sf-radar-link:hover{color:#67E8F9;text-decoration:underline}.sf-radar-signal{display:inline-block;padding:2px 6px;border-radius:999px;font-size:9px;font-weight:900;border:1px solid currentColor}.sf-radar-empty{padding:18px 12px!important;text-align:center!important;color:#8297AC!important}.sf-radar-note{font-size:10px;color:#7DD3FC;font-weight:800}@media(max-width:1050px){.sf-radar-kpis,.sf-radar-grid{grid-template-columns:1fr 1fr}}@media(max-width:650px){.sf-radar-kpis,.sf-radar-grid{grid-template-columns:1fr}}';document.head.appendChild(s)}
+function toneClass(t){return t==='good'?'sf-radar-good':t==='bad'?'sf-radar-bad':t==='warn'?'sf-radar-warn':t==='up'?'sf-radar-up':t==='closed'?'sf-radar-closed':''}
+function vendorTable(items){return'<table><thead><tr><th>권역</th><th>업체</th><th>현재</th><th>동일위치 기준</th><th>편차</th><th>수준</th><th>상태</th></tr></thead><tbody>'+items.map(x=>'<tr><td>'+X(x.region)+'</td><td><button type="button" class="sf-radar-link" data-radar-vendor="'+X(x.name)+'">'+X(x.name)+'</button></td><td>'+W(x.now)+'</td><td>'+W(x.expected)+'</td><td class="'+(x.diff>=0?'sf-radar-up':'sf-radar-bad')+'">'+(x.diff>=0?'+':'')+W(x.diff)+'</td><td class="'+toneClass(x.tone)+'">'+PC(x.ratio)+'</td><td><span class="sf-radar-signal '+toneClass(x.tone)+'">'+x.signal+'</span></td></tr>').join('')+'</tbody></table>'}
+function issueTable(items){if(!items.length)return'<div class="sf-radar-empty">현재 기준 우선 확인 이슈가 없습니다.</div>';return'<table><thead><tr><th>대상</th><th>신호</th><th>현재</th><th>동일위치 기준</th><th>편차</th><th>수준</th></tr></thead><tbody>'+items.map(x=>'<tr><td><button type="button" class="sf-radar-link" data-radar-group="'+X(x.name)+'">'+X(x.name)+'</button></td><td><span class="sf-radar-signal '+toneClass(x.tone)+'">'+x.signal+'</span></td><td>'+W(x.now)+'</td><td>'+W(x.expected)+'</td><td class="'+(x.diff>=0?'sf-radar-up':'sf-radar-bad')+'">'+(x.diff>=0?'+':'')+W(x.diff)+'</td><td class="'+toneClass(x.tone)+'">'+PC(x.ratio)+'</td></tr>').join('')+'</tbody></table>'}
+function render(){const a=analyze();if(!a)return;style();let sec=$('#decisionRadarV93');if(!sec){sec=document.createElement('section');sec.id='decisionRadarV93';sec.className='panel sf-radar';const anchor=$('#kpiFlowSummary')||$('#cards');anchor?.insertAdjacentElement('afterend',sec)}if(!sec)return;const histText=a.hist.length?(a.hist[0].slice(2).replace('-','.')+'~'+a.hist.at(-1).slice(2).replace('-','.')):'-',forecastText=a.forecast==null?'-':W(a.forecast)+'억',closeSub=a.mbo?(forecastText+' 예상 · MBO '+W(a.mbo)+'억'+(a.forecastRate!=null?' · '+PC(a.forecastRate):'')):'월 MBO를 입력하면 판단합니다.',needSub=a.remain>0?('잔여 '+a.remainingBiz+'영업일 · 남은 '+W(a.remain)+'억'):'MBO 이상 달성',recentSub=a.needDaily>0&&a.recent3?('필요 일평균은 최근3일의 '+PC(a.needDaily/a.recent3)):'최근 실제 매출 기준';sec.innerHTML='<div class="head"><div><h3>운영 판단 · 이슈 레이더</h3><p>월마감 가능성과 이상 징후를 먼저 확인한 뒤 아래 업체 → 제품군 → SKU로 내려갑니다. <span class="sf-radar-note">비교기준 '+histText+' 확정월 · 동일 수금 진행위치</span></p></div></div><div class="sf-radar-kpis"><div class="sf-radar-kpi"><div class="k">월마감 전망</div><div class="v '+toneClass(a.closeTone)+'">'+a.closeSignal+'</div><div class="s">'+closeSub+'</div></div><div class="sf-radar-kpi"><div class="k">남은 MBO</div><div class="v '+(a.remain>0?'sf-radar-warn':'sf-radar-good')+'">'+W(a.remain)+'억</div><div class="s">현재 '+W(a.current)+'억'+(a.mbo?' / 목표 '+W(a.mbo)+'억':'')+'</div></div><div class="sf-radar-kpi"><div class="k">잔여 영업일 필요 일평균</div><div class="v '+(a.needVsRecent>1?'sf-radar-bad':'sf-radar-good')+'">'+W(a.needDaily)+'억</div><div class="s">'+needSub+'</div></div><div class="sf-radar-kpi"><div class="k">최근 3영업일 평균</div><div class="v">'+W(a.recent3)+'억</div><div class="s">'+recentSub+'</div></div></div><div class="sf-radar-grid"><div class="sf-radar-box"><h4>관리업체 전체 현황 · 8개</h4><p>이슈 유무와 관계없이 8개 관리업체를 모두 표시합니다. 업체명을 누르면 2단계로 이동합니다.</p><div class="sf-radar-scroll">'+vendorTable(a.vendorStatus)+'</div></div><div class="sf-radar-box"><h4>제품군 이슈 · '+a.groupIssues.length+'건</h4><p>동일 진행위치 대비 변화와 금액 영향도를 반영하며, 모든 이슈 제품군을 스크롤로 확인합니다.</p><div class="sf-radar-scroll">'+issueTable(a.groupIssues)+'</div></div></div>'}
 function schedule(ms=40){clearTimeout(renderTimer);renderTimer=setTimeout(render,ms)}
-document.addEventListener('click',e=>{
-  const vb=e.target.closest('[data-radar-vendor]');if(vb){window.dispatchEvent(new CustomEvent('sf-radar-vendor-select',{detail:{vendor:vb.dataset.radarVendor||''}}));setTimeout(()=>$('#groupTable')?.closest('section.panel')?.scrollIntoView({behavior:'smooth',block:'start'}),60);return}
-  const gb=e.target.closest('[data-radar-group]');if(gb){const g=gb.dataset.radarGroup||'';window.dispatchEvent(new CustomEvent('sf-radar-vendor-select',{detail:{vendor:''}}));setTimeout(()=>{window.__sfPopulateSkuGroups?.();const s=$('#v51Group');if(s){if(![...s.options].some(o=>o.value===g)){const o=document.createElement('option');o.value=g;o.textContent=g;s.appendChild(o)}s.value=g;s.dispatchEvent(new Event('change',{bubbles:true}))}$('#v51CompareTable')?.closest('section.panel')?.scrollIntoView({behavior:'smooth',block:'start'})},80)}
-},true);
-document.addEventListener('change',e=>{if(['month','mbo','first','second'].includes(e.target?.id))schedule(60)});
-document.addEventListener('input',e=>{if(e.target?.id==='mbo')schedule(180)});
+document.addEventListener('click',e=>{const vb=e.target.closest('[data-radar-vendor]');if(vb){window.dispatchEvent(new CustomEvent('sf-radar-vendor-select',{detail:{vendor:vb.dataset.radarVendor||''}}));setTimeout(()=>$('#groupTable')?.closest('section.panel')?.scrollIntoView({behavior:'smooth',block:'start'}),60);return}const gb=e.target.closest('[data-radar-group]');if(gb){const g=gb.dataset.radarGroup||'';window.dispatchEvent(new CustomEvent('sf-radar-vendor-select',{detail:{vendor:''}}));setTimeout(()=>{window.__sfPopulateSkuGroups?.();const s=$('#v51Group');if(s){if(![...s.options].some(o=>o.value===g)){const o=document.createElement('option');o.value=g;o.textContent=g;s.appendChild(o)}s.value=g;s.dispatchEvent(new Event('change',{bubbles:true}))}$('#v51CompareTable')?.closest('section.panel')?.scrollIntoView({behavior:'smooth',block:'start'})},80)}},true);
+document.addEventListener('change',e=>{if(e.target?.id==='month')schedule(60)});
+window.addEventListener('sf-settings-committed',()=>schedule(40));window.addEventListener('sf-data-refreshed',()=>{dataCache=null;dataSig='';schedule(20)});
 window.addEventListener('sf-core-ready',()=>schedule(80));
 window.addEventListener('sf-v61-ready',()=>schedule(100));
 window.addEventListener('sf-vendor-close-change',()=>schedule(80));
 window.addEventListener('sf-group-mbo-committed',()=>schedule(80));
 window.addEventListener('sf-vendor-gap-updated',()=>schedule(80));
-render();setTimeout(render,700);
-window.__SF_DECISION_RADAR_V93=true;
+render();setTimeout(render,700);window.__SF_DECISION_RADAR_V94=true;
 })();
