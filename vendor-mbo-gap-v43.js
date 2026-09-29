@@ -9,7 +9,7 @@ function bucket(v){return KEY.includes(v)?v:OUT}
 function active(){return $('#month')?.value||''}
 function monthlyFrom(rows,month){const mp={};ALL_BUCKETS.forEach(v=>mp[v]=0);rows.forEach(r=>{if(r.d?.slice(0,7)!==month)return;const b=bucket(r.v);mp[b]=(mp[b]||0)+N(r.a)});return mp}
 function sharesFrom(rows,cur){const months=[...new Set(rows.map(r=>r.d?.slice(0,7)).filter(m=>m&&m<cur))].sort(),sum={},cnt={};ALL_BUCKETS.forEach(v=>{sum[v]=0;cnt[v]=0});months.forEach(m=>{const mp=monthlyFrom(rows,m),tot=Object.values(mp).reduce((s,a)=>s+N(a),0);if(!tot)return;ALL_BUCKETS.forEach(v=>{sum[v]+=N(mp[v])/tot;cnt[v]++})});const out={};ALL_BUCKETS.forEach(v=>out[v]=cnt[v]?sum[v]/cnt[v]:0);const tot=Object.values(out).reduce((s,a)=>s+a,0)||1;ALL_BUCKETS.forEach(v=>out[v]/=tot);return{out,months}}
-function closeState(){try{return JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){return{}}}
+function closeState(){let local={};try{local=JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){}const shared=window.__SF_SHARED_CLOSED;return shared&&typeof shared==='object'?{...local,...shared}:local}
 function closedSet(){return new Set(closeState()[active()]||[])}
 function removeAllProductOption(){const sel=$('#groupTarget');if(!sel)return;const opt=sel.querySelector(`option[value="${ALL}"]`);if(opt){const was=sel.value===ALL;opt.remove();if(was){sel.selectedIndex=0;sel.dispatchEvent(new Event('change',{bubbles:true}))}}}
 function rowVendor(tr){if(tr.dataset.v39)return tr.dataset.v39;const t0=tr.cells?.[0]?.textContent?.replace('마감 완료','').trim(),t1=tr.cells?.[1]?.textContent?.replace('마감 완료','').trim();if(t0==='백제약품 전체 합계')return'백제약품 전체 합계';if(t0===OUT)return OUT;if(t0==='총합계')return'총합계';return t1||''}

@@ -2,7 +2,7 @@
 const KEY=['백제약품영등포지점','백제약품(주)영남본부','대전백제약품','백제약품(주)원주지점','(주)인천약품','(주)복산나이스','유진약품(주)','아이팜코리아(주)'],CLOSE_KEY='sales_forecast_vendor_closed_v66';
 const $=s=>document.querySelector(s);let busy=false,master=!!window.__sfMasterToken,saving=false;
 function month(){return $('#month')?.value||''}
-function state(){try{return JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){return{}}}
+function state(){let local={};try{local=JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){}const shared=window.__SF_SHARED_CLOSED;return shared&&typeof shared==='object'?{...local,...shared}:local}
 function closed(){return new Set(state()[month()]||[])}
 function save(set){const z=state();z[month()]=[...set];localStorage.setItem(CLOSE_KEY,JSON.stringify(z));window.__SF_SHARED_CLOSED=z}
 function rowVendor(tr){if(tr.dataset.v39)return tr.dataset.v39;const a=tr.cells?.[0]?.textContent?.replace('마감 완료','').trim(),b=tr.cells?.[1]?.textContent?.replace('마감 완료','').trim();if(KEY.includes(b))return b;if(KEY.includes(a))return a;return''}
