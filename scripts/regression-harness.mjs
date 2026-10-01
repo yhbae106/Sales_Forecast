@@ -59,7 +59,8 @@ const required = [
   ['bootstrap upload', bootstrap, new RegExp('master-upload-v34\\.js\\?v=' + version)],
   ['bootstrap upload diff', bootstrap, new RegExp('upload-diff-v99\\.js\\?v=' + version)],
   ['export loader version', exportLoader, new RegExp("const V='" + version + "'")],
-  ['unified final version', unifiedLoader, new RegExp('unified-final-v73\\.js\\?v=' + version)]
+  ['unified final version', unifiedLoader, new RegExp('unified-final-v73\\.js\\?v=' + version)],
+  ['template loader version', v16, new RegExp('dashboard-templates-v103\\.js\\?v=' + version)]
 ];
 for (const [name, text, re] of required) {
   if (!re.test(text)) fail(name + ' is not aligned to v' + version);
@@ -274,6 +275,31 @@ if (!sharedRuntime.includes('scheduleSettingsPublish(700)')) fail('shared settin
 if (!sharedRuntime.includes("typeof requestIdleCallback==='function'")) fail('shared settings persistence must be idle-scheduled');
 ok('master settings edit performance guards present');
 
+
+const dashboardTemplates = read('dashboard-templates-v103.js');
+if (!v16.includes("'dashboard-templates-v103.js'")) fail('dashboard templates are not preloaded by v16');
+if (!exportLoader.includes("'dashboard-templates-v103.js'")) fail('dashboard templates are not loaded by final UI loader');
+if (!bootstrap.includes('window.__SF_DASHBOARD_THEME')) fail('bootstrap does not hydrate shared dashboardTheme');
+if (!bootstrap.includes('document.documentElement.dataset.sfTheme')) fail('bootstrap must apply the saved theme before final UI render');
+if (!sharedRuntime.includes('window.__sfPublishDashboardTheme')) fail('shared runtime does not publish dashboard template settings');
+if (!sharedRuntime.includes("'Update shared dashboard design template'")) fail('dashboard template changes need a dedicated shared commit');
+if (!sharedRuntime.includes("dashboardTheme:theme")) fail('shared runtime must persist dashboardTheme');
+if (dashboardTemplates.includes('MutationObserver')) fail('dashboard template selector must remain event-driven');
+for (const id of ["id:'default'","id:'a'","id:'b'","id:'c'","id:'d'"]) {
+  if (!dashboardTemplates.includes(id)) fail('dashboard template preset missing: ' + id);
+}
+for (const label of ['현재 디자인','Executive Glass','Modular Control','Light Finance','Operations Focus']) {
+  if (!dashboardTemplates.includes(label)) fail('dashboard template label missing: ' + label);
+}
+if (!dashboardTemplates.includes("b.id='sfTemplateBtn'")) fail('master design-template button is missing');
+if (!dashboardTemplates.includes("window.addEventListener('sf-master-mode-change'")) fail('dashboard template selector is not gated by master mode');
+if (!dashboardTemplates.includes("typeof window.__sfPublishDashboardTheme!=='function'")) fail('dashboard template selector does not use shared persistence');
+if (!dashboardTemplates.includes("apply(before,false)")) fail('template cancel must revert the preview to the previously saved theme');
+if (!dashboardTemplates.includes("data-restore")) fail('template selector must expose an explicit default-design restore action');
+if (!dashboardTemplates.includes("selected!=='b'")) fail('modular template navigation lifecycle guard is missing');
+if (!dashboardTemplates.includes('html[data-sf-theme="c"] body')) fail('light finance template CSS is missing');
+if (!dashboardTemplates.includes('html[data-sf-theme="d"] #decisionRadarV93')) fail('operations-focused radar styling is missing');
+ok('master-selectable dashboard templates, preview rollback, and shared theme persistence guards present');
 
 const textEditor = read('master-text-editor-v95.js');
 const kpiLayout = read('kpi-layout-v37.js');
