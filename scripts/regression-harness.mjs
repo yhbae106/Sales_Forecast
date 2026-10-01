@@ -192,6 +192,11 @@ if (!legacy.includes('if(window.__SF_UNIFIED_FINAL_ACTIVE)return')) fail('legacy
 if (!upperHistory.includes('sf-vendor-scope-change')) fail('vendor scope handoff event is missing');
 if (upperHistory.includes('MutationObserver')) fail('stage-one vendor renderer must remain event-driven');
 if (!upperHistory.includes("let dataCache=null,dataSig=''")) fail('stage-one vendor renderer must cache monthly aggregates');
+if (upperHistory.includes('show=hist.slice(-5)')) fail('vendor history must not drop older confirmed months as new months arrive');
+if (!upperHistory.includes('show=hist;')) fail('vendor history must render the full confirmed-month range');
+if (!upperHistory.includes('--v39-min-width')) fail('vendor history must widen cleanly for horizontal scrolling');
+if (!upperHistory.includes('scrollLeft=box.scrollWidth')) fail('vendor history must open on the recent-month side while keeping older months scrollable');
+
 for (const label of ['26.','확정월 평균','진행월 현재','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율']) {
   if (label === '26.') continue;
   if (!upperHistory.includes(label)) fail('stage-one vendor table missing column: ' + label);
@@ -199,6 +204,10 @@ for (const label of ['26.','확정월 평균','진행월 현재','직전월 대�
 if (!unified.includes('window.__SF_UNIFIED_FINAL_ACTIVE=true')) fail('unified renderer activation flag is missing');
 if (!unified.includes("window.addEventListener('sf-vendor-scope-change'")) fail('unified renderer does not consume vendor scope handoff');
 if (!unified.includes("window.addEventListener('sf-detail-shell-ready'")) fail('SKU renderer does not recover when detail shell becomes ready');
+if (unified.includes('show=hist.slice(-6)')) fail('product/SKU history must not drop older confirmed months');
+if (!unified.includes('show=hist;return{ms,hist,show')) fail('product/SKU history must expose the full confirmed-month range');
+if (!unified.includes('function fitHistory(t,count)')) fail('product/SKU tables must support readable horizontal history scrolling');
+
 if (!detailShell.includes("window.dispatchEvent(new Event('sf-detail-shell-ready'))")) fail('detail shell ready event is missing');
 if (!detailShell.includes("r.d?.slice(0,7)<=m")) fail('SKU product-group options are limited to current month instead of comparison history');
 for (const label of ['확정월 평균','진행월 현재','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율','업체 목표','추가 필요']) {
@@ -236,6 +245,11 @@ if (legacy.includes('dayTable()')) fail('retired daily detail renderer is still 
 if (!radar.includes('recent3CloseAvg')) fail('decision radar does not calculate recent three-month close average');
 if (!radar.includes('forecastVsRecent3')) fail('decision radar does not compare forecast with recent three-month close average');
 if (!radar.includes('function trendSvg')) fail('decision radar close-trend visualization is missing');
+if (!radar.includes('displayHist=allMonths.filter(x=>x<m&&total(x)>0)')) fail('decision radar must retain the full historical range for display');
+if (!radar.includes('hist=displayHist.slice(-5)')) fail('forecast logic must remain limited to the recent five confirmed months');
+if (!radar.includes('a.displayHist?.length?a.displayHist:a.hist')) fail('close-trend chart must render the full available history');
+if (!radar.includes('sf-radar-trend-scroll')) fail('close-trend chart must provide horizontal access to older months');
+
 if (!radar.includes('allClosed=KEY.every(name=>closed.has(name))')) fail('decision radar must detect all managed vendors closed');
 if (!radar.includes("const E1=v=>Math.round((N(v)/1e8)*10)/10")) fail('decision radar must compare MBO status using displayed one-decimal eok values');
 if (!radar.includes('mboMetDisplay=mbo?E1(current)>=E1(mbo):false')) fail('closed MBO achievement must use rounded display values');
@@ -296,6 +310,12 @@ if (!legacy.includes('allCache=null')) fail('legacy renderer sales-row cache is 
 if (legacy.includes('function render(){cards();vendor();groups();detail();compare();groupTarget()}')) fail('legacy renderer still computes hidden detail/compare tables on every render');
 if (legacy.includes('function dayTable()')) fail('retired dayTable code is still bundled');
 ok('visual readability and initial-render performance guards present');
+
+const noMboFinal = read('group-no-mbo-final-v87.js');
+if (noMboFinal.includes('show=hist.slice(-5)')) fail('no-MBO product history must not drop older confirmed months');
+if (!noMboFinal.includes('show=hist')) fail('no-MBO product history must keep the full confirmed-month range');
+if (!noMboFinal.includes('table.style.minWidth=Math.max(1180,700+show.length*88)')) fail('no-MBO product history must stay readable with horizontal scrolling');
+ok('full historical month visibility and horizontal-scroll guards present');
 
 const uiStreamline = read('ui-streamline-v46.js');
 if (!radar.includes('3개월 평균 ') || !radar.includes('a.recent3CloseAvg')) fail('month-close chart is missing the three-month average benchmark label');
