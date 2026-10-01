@@ -1,10 +1,10 @@
 (()=>{'use strict';
 const $=s=>document.querySelector(s),THEMES=[
 {id:'default',code:'기본',name:'현재 디자인',desc:'v102의 안정적인 기본 디자인을 그대로 사용합니다.',tone:'기본'},
-{id:'a',code:'A',name:'Executive Glass',desc:'다크 글래스 기반. KPI 계층과 패널 간격을 더 선명하게 정돈합니다.',tone:'다크 · Executive'},
-{id:'b',code:'B',name:'Modular Control',desc:'좌측 내비게이션과 모듈형 카드로 빠르게 이동하는 SaaS 스타일입니다.',tone:'다크 · Navigation'},
-{id:'c',code:'C',name:'Light Finance',desc:'밝은 재무 보고형. 엑셀 친화적 가독성과 표 중심 분석에 적합합니다.',tone:'라이트 · Finance'},
-{id:'d',code:'D',name:'Operations Focus',desc:'운영 판단과 이슈 레이더를 중심으로 의사결정 흐름을 강조합니다.',tone:'다크 · Operations'}
+{id:'a',code:'A',name:'Executive Glass',desc:'경영진 보고형 · 핵심 KPI 4개 우선 + 월마감 막대/이동평균/예상 콤보 차트',tone:'다크 · Executive'},
+{id:'b',code:'B',name:'Modular Control',desc:'실무 컨트롤타워형 · 좌측 내비 + 대형 KPI 2개 + 4개 미니 운영 모듈',tone:'다크 · Control'},
+{id:'c',code:'C',name:'Light Finance',desc:'재무/관리형 · 밝은 표 중심 화면 + 현재→예상추가→예상마감 워터폴',tone:'라이트 · Finance'},
+{id:'d',code:'D',name:'Operations Focus',desc:'운영회의형 · 이슈 레이더를 최상단 배치 + 위험구간 Bullet/Gauge + 마감 매트릭스',tone:'다크 · Operations'}
 ],IDS=new Set(THEMES.map(x=>x.id));
 let master=!!window.__sfMasterToken,modal=null,saved=norm(window.__SF_DASHBOARD_THEME||window.__sfSharedMeta?.dashboardTheme||'default'),selected=saved;
 function norm(v){v=String(v||'default').toLowerCase();return IDS.has(v)?v:'default'}

@@ -60,7 +60,8 @@ const required = [
   ['bootstrap upload diff', bootstrap, new RegExp('upload-diff-v99\\.js\\?v=' + version)],
   ['export loader version', exportLoader, new RegExp("const V='" + version + "'")],
   ['unified final version', unifiedLoader, new RegExp('unified-final-v73\\.js\\?v=' + version)],
-  ['template loader asset', v16, /dashboard-templates-v103\.js/]
+  ['template loader asset', v16, /dashboard-templates-v103\.js/],
+  ['template visuals asset', v16, /dashboard-template-visuals-v104\.js/]
 ];
 for (const [name, text, re] of required) {
   if (!re.test(text)) fail(name + ' is not aligned to v' + version);
@@ -167,7 +168,7 @@ const runtimeJs = [
   'upper-history-v39.js','vendor-mbo-gap-v43.js','vendor-close-ui-v67.js',
   'export-v19.js','export-v21.js','ui-streamline-v46.js','detail-shell-v61.js',
   'final-layout-v53.js','unified-loader-v74.js','unified-final-v73.js',
-  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','vendor-excel-format-v48.js','decision-radar-v93.js','master-text-editor-v95.js'
+  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','vendor-excel-format-v48.js','decision-radar-v93.js','master-text-editor-v95.js','dashboard-templates-v103.js','dashboard-template-visuals-v104.js'
 ];
 for (const file of runtimeJs) {
   try {
@@ -277,6 +278,33 @@ ok('master settings edit performance guards present');
 
 
 const dashboardTemplates = read('dashboard-templates-v103.js');
+const templateVisuals = read('dashboard-template-visuals-v104.js');
+if (!v16.includes("'dashboard-template-visuals-v104.js'")) fail('distinct template visuals are not preloaded by v16');
+if (!exportLoader.includes("'dashboard-template-visuals-v104.js'")) fail('distinct template visuals are not loaded by final UI loader');
+if (templateVisuals.includes('MutationObserver')) fail('distinct template visuals must remain event-driven');
+for (const fn of ['function comboA(d)','function moduleB(d)','function waterfallC(d)','function operationsD(d)']) {
+  if (!templateVisuals.includes(fn)) fail('distinct template visualization missing: ' + fn);
+}
+if (!templateVisuals.includes('Executive Close Outlook')) fail('template A executive combo chart is missing');
+if (!templateVisuals.includes('3개월 이동평균/예상 라인')) fail('template A must visibly differ with a combo trend line');
+if (!templateVisuals.includes('Control Modules')) fail('template B modular control visualization is missing');
+if (!templateVisuals.includes('sft-ring') || !templateVisuals.includes('sft-module-grid')) fail('template B mini-module/ring layout is missing');
+if (!templateVisuals.includes('Forecast Bridge')) fail('template C finance waterfall is missing');
+if (!templateVisuals.includes("label:'예상 추가'") || !templateVisuals.includes("label:'MBO 차이'")) fail('template C waterfall stages are incomplete');
+if (!templateVisuals.includes('sft-bullet') || !templateVisuals.includes('업체 마감 매트릭스')) fail('template D bullet/risk matrix is missing');
+if (!templateVisuals.includes("if(t==='default'){document.getElementById('sfTemplateVisualV104')?.remove();return}")) fail('default template must restore the original radar visualization');
+if (!templateVisuals.includes("if(t!=='d')return")) fail('template D must have a distinct information-order layout');
+if (!templateVisuals.includes("anchor.insertAdjacentElement('afterend',radar)")) fail('template D must move the operation radar above KPI cards');
+if (!templateVisuals.includes("html[data-sf-theme=\"d\"] #cards{grid-template-columns:repeat(8")) fail('template D compact KPI strip is missing');
+if (!templateVisuals.includes("html[data-sf-theme=\"b\"] #cards [data-kpi-key=\"current\"]")) fail('template B large primary KPI layout is missing');
+if (!templateVisuals.includes("html[data-sf-theme=\"a\"] #cards [data-kpi-key=\"current\"]{order:1}")) fail('template A executive KPI ordering is missing');
+if (!templateVisuals.includes("html[data-sf-theme=\"c\"] .theme-c")) fail('template C finance visual styling is missing');
+for (const ev of ['sf-dashboard-theme-preview','sf-radar-rendered','sf-kpi-layout-updated','sf-data-refreshed']) {
+  if (!templateVisuals.includes("'"+ev+"'")) fail('template visuals missing refresh event: ' + ev);
+}
+ok('distinct A/B/C/D layout and chart-type guards present');
+
+
 if (!v16.includes("'dashboard-templates-v103.js'")) fail('dashboard templates are not preloaded by v16');
 if (!exportLoader.includes("'dashboard-templates-v103.js'")) fail('dashboard templates are not loaded by final UI loader');
 if (!bootstrap.includes('window.__SF_DASHBOARD_THEME')) fail('bootstrap does not hydrate shared dashboardTheme');
