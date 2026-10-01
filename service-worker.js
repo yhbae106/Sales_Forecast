@@ -1,4 +1,4 @@
-const CACHE='scm-sales-forecast-pwa-v16';
+const CACHE='scm-sales-forecast-pwa-v17';
 const SHELL=['/Sales_Forecast/','/Sales_Forecast/index.html','/Sales_Forecast/manifest.webmanifest','/Sales_Forecast/app-icon.svg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).catch(()=>{}))});
 self.addEventListener('activate',e=>{e.waitUntil((async()=>{for(const k of await caches.keys())if(k.startsWith('scm-sales-forecast-pwa-')&&k!==CACHE)await caches.delete(k);await self.clients.claim()})())});
