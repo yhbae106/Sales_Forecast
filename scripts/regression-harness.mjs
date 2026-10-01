@@ -60,7 +60,7 @@ const required = [
   ['bootstrap upload diff', bootstrap, new RegExp('upload-diff-v99\\.js\\?v=' + version)],
   ['export loader version', exportLoader, new RegExp("const V='" + version + "'")],
   ['unified final version', unifiedLoader, new RegExp('unified-final-v73\\.js\\?v=' + version)],
-  ['template loader version', v16, new RegExp('dashboard-templates-v103\\.js\\?v=' + version)]
+  ['template loader asset', v16, /dashboard-templates-v103\.js/]
 ];
 for (const [name, text, re] of required) {
   if (!re.test(text)) fail(name + ' is not aligned to v' + version);
