@@ -59,7 +59,20 @@ function applyHeaders(table,month,fallback){
     }
   }
 }
+function masterOwner(){
+  let name=document.getElementById('sfMasterOwnerV112');
+  const button=document.getElementById('masterModeBtn');
+  if(!button)return;
+  if(!name){
+    const parent=document.createElement('span');
+    parent.id='sfMasterOwnerV112';
+    parent.textContent='유통물류팀 배영훈';
+    parent.style.cssText='display:block;margin-top:5px;text-align:center;font-size:10px;line-height:1.35;color:#9eb3c8;white-space:nowrap;font-weight:700';
+    button.insertAdjacentElement('afterend',parent);
+  }
+}
 function apply(){
+  masterOwner();
   const month=selectedMonth(),hist=historicalMonths($('#vendorTable')),avg=periodLabel(hist),cur=monthName(month);
   TABLE_IDS.forEach(id=>applyHeaders(document.getElementById(id),month,hist));
   const ui=window.__SF_UI_TEXT||{};
