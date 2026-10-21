@@ -15,9 +15,62 @@ function inferredBounds(cur,hist,sched){const b=biz(cur),den=Math.max(1,b.length
 function bounds(m,hist,sched){const s=sched[m]||[],a=schedIndex(m,s[0]),c=schedIndex(m,s[1]);return a!=null&&c!=null&&c>a?[a,c]:inferredBounds(m,hist,sched)}
 function phase(m,date,bnd){const b=biz(m),i=Math.max(0,b.filter(x=>x<=date).length-1),[a,c]=bnd;return i<=a?[0,a?i/a:0]:i<=c?[1,(i-a)/Math.max(1,c-a)]:[2,(i-c)/Math.max(1,b.length-1-c)]}
 function eq(m,ph,bnd){const b=biz(m),[a,c]=bnd;let i=ph[0]===0?Math.round(a*ph[1]):ph[0]===1?Math.round(a+(c-a)*ph[1]):Math.round(c+(b.length-1-c)*ph[1]);return b[Math.max(0,Math.min(b.length-1,i))]}
-function progress(m,d,data){const hist=data.months.filter(x=>x<m&&data.totals[x]>0).slice(-5);if(!hist.length)return 0;const ph=phase(m,d,bounds(m,hist,data.z.sched)),vals=[];hist.forEach(h=>{const f=data.totals[h],cut=eq(h,ph,bounds(h,hist,data.z.sched)),r=cum(data.dailies[h],cut)/f;if(Number.isFinite(r)&&r>=0&&r<1.4)vals.push(r)});return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0}
-function cardMap(){const o={};document.querySelectorAll('#cards .card').forEach(c=>{const l=c.querySelector('.label')?.textContent?.trim();if(l)o[l]=c});return o}function setCard(c,val,sub,cls){if(!c)return;const v=c.querySelector('.value'),s=c.querySelector('.sub');if(v){v.textContent=val;v.classList.remove('good','warn','bad','info');if(cls)v.classList.add(cls)}if(s&&sub!=null)s.textContent=sub}
-function patch(){const m=$('#month')?.value||'',data=build(),o=data.dailies[m]||{},d=latest(o);if(!m||!d)return;const M=data.z.mbo[m]==null?N($('#mbo')?.value)*1e8:N(data.z.mbo[m])*1e8,cur=data.totals[m]||0;if(!M)return;const p=progress(m,d,data);if(!(p>0))return;const closed=allClosed(m),goal=M*p,fc=closed?cur:cur/p,cm=cardMap(),forecastSub=closed?'전체 관리업체 마감완료 · 현재 누계 기준':'4~8월 동일 수금 진행위치 기준';setCard(cm['기준일 목표 누계'],W(goal)+'억','4~8월 확정 실적의 동일 수금 진행위치 평균','info');setCard(cm['기준일 달성률'],P(cur/goal),'실제 누계 ÷ 기준 목표',cur>=goal?'good':'bad');setCard(cm['기준일 부족액'],W(Math.max(0,goal-cur))+'억',cur<goal?'추가 필요':'기준 이상',cur>=goal?'good':'bad');setCard(cm['예상 마감'],W(fc)+'억',forecastSub,closed?(cur>=M?'good':'warn'):'good');setCard(cm['예상 MBO 달성률'],P(fc/M),closed?'마감완료 금액 ÷ MBO':'예상마감 ÷ MBO',fc>=M?'good':'warn');window.__SF_FORECAST_V81={month:m,date:d,progress:p,goal,forecast:fc,allClosed:closed}}
+function progress(m,d,data){
+ const eligible=data.months.filter(x=>x<m&&data.totals[x]>=230e8&&data.totals[x]<=270e8);
+ const hist=(eligible.length?eligible:data.months.filter(x=>x<m&&data.totals[x]>0)).slice(-5);
+ if(!hist.length)return 0;
+ const ph=phase(m,d,bounds(m,hist,data.z.sched)),vals=[],samples=[];
+ hist.forEach(h=>{
+  const f=data.totals[h],cut=eq(h,ph,bounds(h,hist,data.z.sched));
+  const booked=cum(data.dailies[h],cut),r=booked/f;
+  if(Number.isFinite(r)&&r>=0&&r<1.4){vals.push(r);samples.push({month:h,close:f,progress:r,remaining:Math.max(0,f-booked)})}
+ });
+ const p=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+ window.__SF_PROGRESS_DETAIL={month:m,date:d,hist:[...hist],vals:[...vals],samples,p};
+ return p;
+}
+function prevMonth(m){const[y,mo]=String(m||'').split('-').map(Number),d=new Date(y,mo-2,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}function cardMap(){const o={};document.querySelectorAll('#cards .card').forEach(c=>{const l=c.querySelector('.label')?.textContent?.trim();if(l)o[l]=c});return o}function setCard(c,val,sub,cls){if(!c)return;const v=c.querySelector('.value'),s=c.querySelector('.sub');if(v){v.textContent=val;v.classList.remove('good','warn','bad','info');if(cls)v.classList.add(cls)}if(s&&sub!=null)s.textContent=sub}
+function patch(){
+ const m=$('#month')?.value||'',data=build(),o=data.dailies[m]||{},d=latest(o);
+ if(!m||!d)return;
+ const stored=data.z.mbo?.[m],mboValue=stored==null?Number($('#mbo')?.value||0):Number(stored);
+ const M=Math.max(0,Number.isFinite(mboValue)?mboValue:0)*1e8;
+ const cur=data.totals[m]||0,p=progress(m,d,data);if(!(p>0))return;
+ const closed=allClosed(m),detail=window.__SF_PROGRESS_DETAIL||{};
+ const hist=detail.hist||data.months.filter(x=>x<m&&data.totals[x]>0).slice(-5);
+ const recentHist=hist.slice(-3),recentAvg=recentHist.length?recentHist.reduce((s,h)=>s+N(data.totals[h]),0)/recentHist.length:0;
+ const pm=prevMonth(m),pmMbo=N(data.z.mbo?.[pm])*1e8;
+ const prevMonthClose=N(data.totals[pm]),prevCloseRatio=pmMbo>0?prevMonthClose/pmMbo:0;
+ const b=biz(m),elapsedBiz=Math.max(1,b.filter(x=>x<=d).length);
+ const adj=window.__sfBoundaryAdjust?.({
+  month:m,date:d,current:cur,mbo:M,recentAvg,rawProgress:p,
+  histProgress:detail.vals||[],historySamples:detail.samples||[],
+  elapsedBiz,totalBiz:b.length,prevCloseRatio,prevMonthClose,allClosed:closed
+ });
+ const goalProgress=adj?.progressForGoal||p,goal=M>0?M*goalProgress:0;
+ const paceCurrent=adj?.effectiveCurrent??cur,fc=closed?cur:(adj?.forecast??cur/p);
+ const gap=goal>0?Math.max(0,goal-paceCurrent):0,cm=cardMap();
+ const boundary=!!adj&&(adj.early||adj.late);
+ const forecastSub=closed?'전체 관리업체 마감완료 · 실제 누계'
+  :adj?.ruleApplied==='end-of-business-month'?'월 영업일 종료 · 반영된 실제 누계'
+  :adj?.ruleApplied==='actual-above-range'?'270억 초과 실적 발생 · 실제 누계 우선'
+  :adj?.rolloverPotential>=.5e8?'270억 상한 운영 · 약 '+W(adj.rolloverPotential)+'억 익월 이월 가능(추정)'
+  :adj?.shortfallRisk?'230억 미달 가능 · 잔여 영업일 매출 재점검'
+  :adj?.ruleApplied==='managed-minimum-recovery'?'230억 회복 가능 시나리오 · 미확정'
+  :adj?.carryInPossible?'전월 상한 근접 · 월초 이월 반영 가능(추정)'
+  :'발행일·영업일 패턴 + 230~270억 운영 기준';
+ const paceSub=boundary?'월경계 보정 순도 · 이월/선반영 영향 완화':'확정월 동일 수금 진행위치 기준';
+ if(goal>0){
+  setCard(cm['기준일 목표 누계'],W(goal)+'억',paceSub,'info');
+  setCard(cm['기준일 달성률'],P(paceCurrent/goal),boundary?'보정 누계 ÷ 기준 목표':'실제 누계 ÷ 기준 목표',paceCurrent>=goal?'good':'bad');
+  setCard(cm['기준일 부족액'],W(gap)+'억',paceCurrent<goal?'추가 필요':'기준 이상',paceCurrent>=goal?'good':'bad');
+ }
+ setCard(cm['예상 마감'],W(fc)+'억',forecastSub,adj?.shortfallRisk?'bad':M>0&&fc>=M?'good':'warn');
+ if(M>0)setCard(cm['예상 MBO 달성률'],P(fc/M),closed?'실제 누계 ÷ MBO':'운영 보정 예상마감 ÷ MBO',fc>=M?'good':'warn');
+ window.__SF_FORECAST_V81={month:m,date:d,progress:p,goalProgress,goal,forecast:fc,
+  rawForecast:adj?.rawForecast??cur/p,effectiveCurrent:paceCurrent,allClosed:closed,
+  boundary:adj||null,rolloverPotential:adj?.rolloverPotential||0,ruleApplied:adj?.ruleApplied||'historical-only'};
+}
 function schedule(delay=60){clearTimeout(timer);timer=setTimeout(patch,delay)}
 document.addEventListener('change',e=>{if(e.target?.id==='month')schedule()});window.addEventListener('sf-settings-committed',()=>schedule(30));window.addEventListener('sf-vendor-close-change',()=>schedule(30));window.addEventListener('sf-data-refreshed',()=>{cache=null;cacheSig='';schedule(20)});window.addEventListener('sf-core-ready',()=>schedule(120));setTimeout(()=>schedule(0),900);
 })();
