@@ -165,7 +165,7 @@ const runtimeJs = [
   'upper-history-v39.js','vendor-mbo-gap-v43.js','vendor-close-ui-v67.js',
   'export-v19.js','export-v21.js','ui-streamline-v46.js','detail-shell-v61.js',
   'final-layout-v53.js','unified-loader-v74.js','unified-final-v73.js',
-  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','vendor-excel-format-v48.js','decision-radar-v93.js','master-text-editor-v95.js'
+  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','group-mbo-close-v70.js','vendor-excel-format-v48.js','decision-radar-v93.js','master-text-editor-v95.js'
 ];
 for (const file of runtimeJs) {
   try {
@@ -280,6 +280,9 @@ const deployWorkflow=read('.github/workflows/deploy-pages.yml');
 const gate=deployWorkflow.indexOf('node scripts/regression-harness.mjs');
 if(gate<0||gate>deployWorkflow.indexOf('actions/upload-pages-artifact'))fail('Pages upload must follow a successful data/runtime harness');
 try{await import('./reliability-regression.mjs');ok('production reliability behavioral regressions');}catch(error){fail('reliability regression: '+error.stack);}
+for(const suite of ['product-selection-regression.mjs','mbo-display-regression.mjs','navigation-regression.mjs']){
+  try{await import('./'+suite);ok(suite+' behavioral regressions');}catch(error){fail(suite+': '+error.stack);}
+}
 
 const textEditor = read('master-text-editor-v95.js');
 const kpiLayout = read('kpi-layout-v37.js');
