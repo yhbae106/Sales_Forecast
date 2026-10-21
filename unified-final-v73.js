@@ -165,6 +165,7 @@ function renderSkuMatrix(t,vendor,group){
 }
 
 function skuSummary(table){
+ matrixStyle();
  const panel=table.closest('section.panel');if(!panel)return null;
  let summary=panel.querySelector('.sku-v115-summary');
  if(!summary){summary=document.createElement('div');summary.className='sku-v115-summary';summary.setAttribute('aria-live','polite');table.closest('.table')?.insertAdjacentElement('beforebegin',summary)}
