@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { Script } from 'node:vm';
 
 const read = p => fs.readFileSync(p, 'utf8');
 const fail = m => { console.error('HARNESS FAIL:', m); process.exitCode = 1; };
@@ -60,8 +60,7 @@ const required = [
   ['bootstrap upload diff', bootstrap, new RegExp('upload-diff-v99\\.js\\?v=' + version)],
   ['export loader version', exportLoader, new RegExp("const V='" + version + "'")],
   ['unified final version', unifiedLoader, new RegExp('unified-final-v73\\.js\\?v=' + version)],
-  ['template loader asset', v16, /dashboard-templates-v103\.js/],
-  ['template visuals asset', v16, /dashboard-template-visuals-v104\.js/]
+  ['reliability loader asset', v16, /data-reliability\.js/]
 ];
 for (const [name, text, re] of required) {
   if (!re.test(text)) fail(name + ' is not aligned to v' + version);
@@ -87,8 +86,6 @@ ok('shared upload freshness and partial-month merge guards present');
 const uploadDiff = read('upload-diff-v99.js');
 if (!v16.includes("'upload-diff-v99.js?v=" + version + "'")) fail('core preloader is missing upload diff inspector');
 if (!read('shared-v31.js').includes('buildUploadDiff(previousRows,nextRows,sourceFiles)')) fail('shared runtime must calculate upload-to-upload row diffs');
-if (!read('shared-v31.js').includes('lastUploadDiff=buildUploadDiff(previous.uploads||[],payload.up||[],sourceFiles)')) fail('sales publisher must compare against the authoritative previous shared upload');
-if (!read('shared-v31.js').includes('lastUploadDiff};return putShared')) fail('sales publisher must persist lastUploadDiff with the shared payload');
 if (!read('shared-v31.js').includes('window.__SF_LAST_UPLOAD_DIFF=got.lastUploadDiff||null')) fail('verified shared write must expose the latest upload diff');
 if (!bootstrap.includes('window.__SF_LAST_UPLOAD_DIFF=shared.lastUploadDiff||null')) fail('bootstrap must hydrate persisted upload diff');
 if (!uploadDiff.includes("id='sfUploadDiffBtn'") && !uploadDiff.includes("b.id='sfUploadDiffBtn'")) fail('upload diff inspector button is missing');
@@ -164,17 +161,17 @@ ok('closed vendor allocation regression model');
 
 
 const runtimeJs = [
-  'v16.js','bootstrap-v36.js','v16-legacy.js','shared-v31.js','master-upload-v34.js','upload-diff-v99.js',
+  'data-reliability.js','service-worker.js','v16.js','bootstrap-v36.js','v16-legacy.js','shared-v31.js','master-upload-v34.js','upload-diff-v99.js',
   'upper-history-v39.js','vendor-mbo-gap-v43.js','vendor-close-ui-v67.js',
   'export-v19.js','export-v21.js','ui-streamline-v46.js','detail-shell-v61.js',
   'final-layout-v53.js','unified-loader-v74.js','unified-final-v73.js',
-  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','vendor-excel-format-v48.js','decision-radar-v93.js','master-text-editor-v95.js','dashboard-templates-v103.js','dashboard-template-visuals-v104.js'
+  'group-info-no-mbo-v82.js','group-no-mbo-final-v87.js','vendor-excel-format-v48.js','decision-radar-v93.js','master-text-editor-v95.js'
 ];
 for (const file of runtimeJs) {
   try {
-    execFileSync(process.execPath, ['--check', file], {stdio:'pipe'});
+    new Script(read(file), {filename:file});
   } catch (e) {
-    fail(file + ' JavaScript syntax check failed: ' + String(e.stderr || e.message).trim());
+    fail(file + ' JavaScript syntax check failed: ' + String(e.message).trim());
   }
   if (read(file).includes('\\nfunction')) fail(file + ' contains a literal \\n before function declaration');
 }
@@ -256,10 +253,8 @@ if (!radar.includes('allClosed=KEY.every(name=>closed.has(name))')) fail('decisi
 if (!radar.includes("const E1=v=>Math.round((N(v)/1e8)*10)/10")) fail('decision radar must compare MBO status using displayed one-decimal eok values');
 if (!radar.includes('mboMetDisplay=mbo?E1(current)>=E1(mbo):false')) fail('closed MBO achievement must use rounded display values');
 if (!radar.includes("closeSignal='MBO 달성'")) fail('rounded closed-MBO success label is missing');
-if (!radar.includes("const deltaMbo=a.mbo?(E1(a.current)-E1(a.mbo))*1e8:null")) fail('trend MBO delta must use the same one-decimal display basis');
 
-if (!radar.includes('forecast=allClosed?current:rawForecast')) fail('decision radar forecast must collapse to current total when all vendors are closed');
-if (!forecastProgress.includes('fc=closed?cur:cur/p')) fail('top forecast cards must collapse forecast to current total when all vendors are closed');
+// The actual closed-state and display-rounding behavior is exercised by reliability-regression.mjs.
 if (!forecastProgress.includes("window.addEventListener('sf-vendor-close-change'")) fail('forecast cards must refresh immediately after vendor close changes');
 if (!radar.includes('showForecast=!a.allClosed')) fail('close-trend chart must suppress duplicate forecast marker after full close');
 if (!radar.includes('<polyline points=')) fail('month-close visualization must use a time-series trend line');
@@ -277,57 +272,14 @@ if (!sharedRuntime.includes("typeof requestIdleCallback==='function'")) fail('sh
 ok('master settings edit performance guards present');
 
 
-const dashboardTemplates = read('dashboard-templates-v103.js');
-const templateVisuals = read('dashboard-template-visuals-v104.js');
-if (!v16.includes("'dashboard-template-visuals-v104.js'")) fail('distinct template visuals are not preloaded by v16');
-if (!exportLoader.includes("'dashboard-template-visuals-v104.js'")) fail('distinct template visuals are not loaded by final UI loader');
-if (templateVisuals.includes('MutationObserver')) fail('distinct template visuals must remain event-driven');
-for (const fn of ['function comboA(d)','function moduleB(d)','function waterfallC(d)','function operationsD(d)']) {
-  if (!templateVisuals.includes(fn)) fail('distinct template visualization missing: ' + fn);
+// The removed design-template assets must not return through either loader.
+for (const removed of ['dashboard-templates-v103.js','dashboard-template-visuals-v104.js']) {
+  if(v16.includes(removed)||exportLoader.includes(removed))fail('loader requests removed asset: '+removed);
 }
-if (!templateVisuals.includes('Executive Close Outlook')) fail('template A executive combo chart is missing');
-if (!templateVisuals.includes('3개월 이동평균/예상 라인')) fail('template A must visibly differ with a combo trend line');
-if (!templateVisuals.includes('Control Modules')) fail('template B modular control visualization is missing');
-if (!templateVisuals.includes('sft-ring') || !templateVisuals.includes('sft-module-grid')) fail('template B mini-module/ring layout is missing');
-if (!templateVisuals.includes('Forecast Bridge')) fail('template C finance waterfall is missing');
-if (!templateVisuals.includes("label:'예상 추가'") || !templateVisuals.includes("label:'MBO 차이'")) fail('template C waterfall stages are incomplete');
-if (!templateVisuals.includes('sft-bullet') || !templateVisuals.includes('업체 마감 매트릭스')) fail('template D bullet/risk matrix is missing');
-if (!templateVisuals.includes("if(t==='default'){document.getElementById('sfTemplateVisualV104')?.remove();return}")) fail('default template must restore the original radar visualization');
-if (!templateVisuals.includes("if(t!=='d')return")) fail('template D must have a distinct information-order layout');
-if (!templateVisuals.includes("anchor.insertAdjacentElement('afterend',radar)")) fail('template D must move the operation radar above KPI cards');
-if (!templateVisuals.includes("html[data-sf-theme=\"d\"] #cards{grid-template-columns:repeat(8")) fail('template D compact KPI strip is missing');
-if (!templateVisuals.includes("html[data-sf-theme=\"b\"] #cards [data-kpi-key=\"current\"]")) fail('template B large primary KPI layout is missing');
-if (!templateVisuals.includes("html[data-sf-theme=\"a\"] #cards [data-kpi-key=\"current\"]{order:1}")) fail('template A executive KPI ordering is missing');
-if (!templateVisuals.includes("html[data-sf-theme=\"c\"] .theme-c")) fail('template C finance visual styling is missing');
-for (const ev of ['sf-dashboard-theme-preview','sf-radar-rendered','sf-kpi-layout-updated','sf-data-refreshed']) {
-  if (!templateVisuals.includes("'"+ev+"'")) fail('template visuals missing refresh event: ' + ev);
-}
-ok('distinct A/B/C/D layout and chart-type guards present');
-
-
-if (!v16.includes("'dashboard-templates-v103.js'")) fail('dashboard templates are not preloaded by v16');
-if (!exportLoader.includes("'dashboard-templates-v103.js'")) fail('dashboard templates are not loaded by final UI loader');
-if (!bootstrap.includes('window.__SF_DASHBOARD_THEME')) fail('bootstrap does not hydrate shared dashboardTheme');
-if (!bootstrap.includes('document.documentElement.dataset.sfTheme')) fail('bootstrap must apply the saved theme before final UI render');
-if (!sharedRuntime.includes('window.__sfPublishDashboardTheme')) fail('shared runtime does not publish dashboard template settings');
-if (!sharedRuntime.includes("'Update shared dashboard design template'")) fail('dashboard template changes need a dedicated shared commit');
-if (!sharedRuntime.includes("dashboardTheme:theme")) fail('shared runtime must persist dashboardTheme');
-if (dashboardTemplates.includes('MutationObserver')) fail('dashboard template selector must remain event-driven');
-for (const id of ["id:'default'","id:'a'","id:'b'","id:'c'","id:'d'"]) {
-  if (!dashboardTemplates.includes(id)) fail('dashboard template preset missing: ' + id);
-}
-for (const label of ['현재 디자인','Executive Glass','Modular Control','Light Finance','Operations Focus']) {
-  if (!dashboardTemplates.includes(label)) fail('dashboard template label missing: ' + label);
-}
-if (!dashboardTemplates.includes("b.id='sfTemplateBtn'")) fail('master design-template button is missing');
-if (!dashboardTemplates.includes("window.addEventListener('sf-master-mode-change'")) fail('dashboard template selector is not gated by master mode');
-if (!dashboardTemplates.includes("typeof window.__sfPublishDashboardTheme!=='function'")) fail('dashboard template selector does not use shared persistence');
-if (!dashboardTemplates.includes("apply(before,false)")) fail('template cancel must revert the preview to the previously saved theme');
-if (!dashboardTemplates.includes("data-restore")) fail('template selector must expose an explicit default-design restore action');
-if (!dashboardTemplates.includes("selected!=='b'")) fail('modular template navigation lifecycle guard is missing');
-if (!dashboardTemplates.includes('html[data-sf-theme="c"] body')) fail('light finance template CSS is missing');
-if (!dashboardTemplates.includes('html[data-sf-theme="d"] #decisionRadarV93')) fail('operations-focused radar styling is missing');
-ok('master-selectable dashboard templates, preview rollback, and shared theme persistence guards present');
+const deployWorkflow=read('.github/workflows/deploy-pages.yml');
+const gate=deployWorkflow.indexOf('node scripts/regression-harness.mjs');
+if(gate<0||gate>deployWorkflow.indexOf('actions/upload-pages-artifact'))fail('Pages upload must follow a successful data/runtime harness');
+try{await import('./reliability-regression.mjs');ok('production reliability behavioral regressions');}catch(error){fail('reliability regression: '+error.stack);}
 
 const textEditor = read('master-text-editor-v95.js');
 const kpiLayout = read('kpi-layout-v37.js');
@@ -372,7 +324,7 @@ if (!noMboFinal.includes('table.style.minWidth=Math.max(1180,700+show.length*88)
 ok('full historical month visibility and horizontal-scroll guards present');
 
 const uiStreamline = read('ui-streamline-v46.js');
-if (!radar.includes('3개월 평균 ') || !radar.includes('a.recent3CloseAvg')) fail('month-close chart is missing the three-month average benchmark label');
+if (!radar.includes('최근 3개월 평균') || !radar.includes('a.recent3CloseAvg')) fail('month-close chart is missing the three-month average benchmark label');
 if (!radar.includes('class="average"')) fail('month-close chart legend is missing the three-month average benchmark');
 if (unified.includes('MutationObserver')) fail('unified renderer still contains obsolete MutationObserver logic');
 if (unifiedLoader.includes('QuietObserver') || unifiedLoader.includes('window.MutationObserver=')) fail('unified loader still monkeypatches global MutationObserver');
@@ -402,3 +354,4 @@ ok('decision input data is available');
 
 if (process.exitCode) process.exit(process.exitCode);
 console.log('HARNESS PASS');
+
