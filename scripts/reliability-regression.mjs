@@ -94,12 +94,19 @@ function sharedRuntime(base,remote=base){
     if(init.headers?.Accept==='application/vnd.github.raw+json')return copy(current);
     return{sha:sha()};
   }};
-  const document={querySelector:()=>null,addEventListener:()=>{},createElement:()=>({}),head:{appendChild:()=>{}},documentElement:{dataset:{}}};
+  const controls={},listeners={};
+  const document={querySelector:s=>controls[s]||null,addEventListener:(name,fn)=>(listeners[name]||(listeners[name]=[])).push(fn),createElement:()=>({}),head:{appendChild:()=>{}},documentElement:{dataset:{}}};
   const window={SFDataReliability:reliability,__sfSharedMeta:copy(base),__SF_SHARED_UPLOADS:copy(base.uploads),addEventListener:()=>{},dispatchEvent:()=>{}};
   const context=vm.createContext({window,document,localStorage:local,TextEncoder,TextDecoder,btoa,atob,setTimeout:()=>0,clearTimeout:()=>{},CustomEvent:class{constructor(type,init){this.type=type;this.detail=init?.detail;}}});
   vm.runInContext(fs.readFileSync(new URL('../shared-v31.js',import.meta.url),'utf8'),context);window.__sfMasterToken='fixture-token';
-  return{window,local,requests,views,reliability,current:()=>current};
+  return{window,local,requests,views,reliability,controls,listeners,current:()=>current};
 }
+await test('shared group selector treats null and blank as unset without losing an explicit zero target',()=>{
+  const base=fixture();base.gmbo={'2026-10':{missing:null,blank:'',zero:0,positive:5}};
+  const r=sharedRuntime(base);r.controls['#month']={value:'2026-10'};r.controls['#groupTarget']={value:'missing'};r.controls['#groupMbo']={value:'stale'};
+  const select=group=>{r.controls['#groupTarget'].value=group;r.listeners.change.forEach(fn=>fn({target:{id:'groupTarget'}}));return r.controls['#groupMbo'].value;};
+  assert.equal(select('missing'),'');assert.equal(select('blank'),'');assert.equal(select('zero'),'0');assert.equal(select('positive'),'5');assert.equal(select(''),'');assert.equal(r.requests.length,0);
+});
 await test('real settings publisher uses blob SHA and keeps remote text and unrelated settings',async()=>{
   const base=fixture(),remote=copy(base);remote.uiText.title='Remote';remote.mbo['2026-11']=260;
   const runtime=sharedRuntime(base,remote),local=JSON.parse(runtime.local.getItem('sales_forecast_v16'));local.mbo['2026-10']=255;runtime.local.setItem('sales_forecast_v16',JSON.stringify(local));
