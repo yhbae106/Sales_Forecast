@@ -1,0 +1,15 @@
+/* 2026-10-22: keyboard, numeric readability and compact-screen safeguards. */
+:focus-visible{outline:3px solid #287bd1!important;outline-offset:3px}
+button,input,select,textarea{font:inherit}
+button,select{touch-action:manipulation}
+button:disabled{cursor:not-allowed}
+table{font-variant-numeric:tabular-nums}
+th{line-height:1.5}td{line-height:1.55}
+.table-scroll,.table-wrap{overscroll-behavior-x:contain;scrollbar-width:thin}
+.table-scroll:focus-visible,.table-wrap:focus-visible{outline-offset:-3px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+@media(max-width:640px){input,select,textarea{font-size:16px!important}button{min-height:36px}h1{overflow-wrap:anywhere}.section-head{flex-wrap:wrap;gap:12px}.actions{flex-wrap:wrap}}
+@media print{button[id$="More"]{display:none!important}}
+#cards .sub,.card .sub{color:#b7c7db!important}.card .label{color:#d4dfed!important}
+:focus-visible{outline-color:#74d9ef!important}
+.sf-quicknav{flex-wrap:wrap}
