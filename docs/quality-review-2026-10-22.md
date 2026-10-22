@@ -1,6 +1,6 @@
 # Dashboard quality review — 2026-10-22
 
-- Prepared but NOT deployed (automatic approval review blocked the dataset upload): lossless seed encoding: 8,208,251 → 945,475 bytes; gzip comparison 547,153 → 238,225 bytes. This measures payload size, not an end-to-end loading-time guarantee. All original fields and records were compared before writing. The original data.js remains in production. The lossless encoder is available for a separately approved data-format update.
+- Lossless seed encoding (approved by the dashboard master): 8,208,251 → 945,475 bytes; gzip comparison 547,153 → 238,225 bytes. This measures payload size, not an end-to-end loading-time guarantee. All original fields and records were compared before writing. The compact data.js preserves the runtime SEED_DATA schema. Run `node scripts/pack-seed.mjs` after regenerating the seed.
 - Preload historical data alongside shared hydration. Retire this app's CacheStorage only; versioned assets use HTTP caching. The worker no longer provides an offline HTML shell; verified application-level data fallback stays intact.
 - Increase KPI label contrast, keyboard focus visibility, reduced-motion support and small-screen input sizes.
 - Use “모형상 목표 이상” for the model outlook so it is not mistaken for confirmed achievement. SKU strength/package expansion remains unchanged.
