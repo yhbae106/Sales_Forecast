@@ -93,6 +93,7 @@ function fixture(initial = {}) {
       {date:'2026-10-20',vendor:B,productGroup:G2,material:'펙수클루 40mg',amount:4e8},
     ]},
   };
+  if(initial.rows)window.SEED_DATA.dailyRecords.push(...initial.rows);
   const setTimeout = (fn, delay=0) => {const id=++timerId;timers.set(id,{fn,at:clock+delay});return id;};
   const context = vm.createContext({window,document,localStorage:{getItem:k=>local.get(k)||null,setItem:(k,v)=>{storageWrites++;local.set(k,v);}},Event:BrowserEvent,CustomEvent:BrowserEvent,setTimeout,clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>setTimeout(fn,16)});
   const flush = () => {
@@ -179,7 +180,7 @@ test('month and refresh preserve explicit SKU vendor after an earlier upper-vend
 
 test('all-vendor SKU detail remains collapsed initially',()=>{
   const f=fixture({group:G1});
-  assert.match(f.compare.innerHTML,/aria-expanded="false"/);assert.match(f.compare.innerHTML,/<tr hidden class="sku-v115-detail"/);assert.equal(f.window.__SF_SKU_VENDOR_EXPORT.count,2);
+  assert.match(f.compare.innerHTML,/aria-expanded="false"/);assert.match(f.compare.innerHTML,/<tr hidden[^>]*class="sku-v115-detail"/);assert.equal(f.window.__SF_SKU_VENDOR_EXPORT.count,2);
   assert.ok(f.window.__SF_SKU_VENDOR_EXPORT.rows.some(r=>r[1]===A),'export includes collapsed vendor details');
 });
 
@@ -192,4 +193,26 @@ test('single-vendor multi-SKU total has the same column count as its header',()=
   assert.match(grand,/<td>제품군 합계<\/td><td class="sku-v115-now">2\.50<\/td>/);
 });
 
+const packs=[28,100,300].flatMap((pack,i)=>[
+ {date:'2026-09-30',vendor:A,productGroup:G2,material:`펙수클루정 10밀리그램 ${pack}T`,amount:(i+1)*1e8},
+ {date:'2026-10-22',vendor:A,productGroup:G2,material:`펙수클루정 10밀리그램 ${pack}T`,amount:(i+1)*1e7},
+ {date:'2026-10-22',vendor:B,productGroup:G2,material:`펙수클루정 10밀리그램 ${pack}T`,amount:(i+1)*2e7},
+]);
+test('pack variants aggregate every month while preserving SKU/vendor exports',()=>{
+ const f=fixture({group:G2,rows:packs});
+ const r=f.window.__SF_SKU_VENDOR_EXPORT.rows;
+ const sum=r.find(x=>x[0]==='펙수클루정 10밀리그램 합계');
+ assert.deepEqual(Array.from(sum.slice(1,6)),['포장단위 합계',1.8,100,6,-4.2]);
+ assert.equal(r.filter(x=>x[0]==='펙수클루정 10밀리그램 합계').length,1);
+ for(const pack of [28,100,300])assert.ok(r.some(x=>x[0]===`펙수클루정 10밀리그램 ${pack}T`&&x[1]===A));
+ assert.match(f.compare.innerHTML,/<tr hidden[^>]*data-sku-v121-ancestors="f\d+"[^>]*class="sku-v115-subtotal"/);
+ assert.equal(r.find(x=>x[0]==='제품군 합계')[2],5.8);
+});
+test('single vendor retains pack expansion without duplicate vendor subtotals',()=>{
+ const f=fixture({group:G2,vendor:A,rows:packs});
+ const sum=f.window.__SF_SKU_VENDOR_EXPORT.rows.find(x=>x[0]==='펙수클루정 10밀리그램 합계');
+ assert.deepEqual(Array.from(sum.slice(1,4)),[0.6,6,-5.4]);
+ assert.match(f.compare.innerHTML,/data-sku-v115-fold="f\d+"/);
+ assert.doesNotMatch(f.compare.innerHTML,/SKU 소계|data-sku-v115-fold="s/);
+});
 console.log(`PRODUCT SELECTION: ${passed} behavioral checks passed`);

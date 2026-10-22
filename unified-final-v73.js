@@ -80,6 +80,24 @@ function buildSkuMatrix(source,group,vendor,selected,hist,show,last){
  });
  return{skus,grand:metric('제품군 합계',total),skuCount:skus.length,vendorCount:seenVendors.size};
 }
+// Keep product, dosage form and strength; strip only an explicit tablet/capsule pack.
+// Ambiguous descriptions stay as separate SKUs rather than merging unlike products.
+function skuStrengthName(name){
+ const normalized=String(name).replace(/\s+/g,' ').trim();
+ const pack=/[\s/_-]+\d+(?:[.,]\d+)?\s*(?:TT|T|CP|C|TB)(?=$|[\s(\-])/i.exec(normalized);
+ if(!pack)return normalized;
+ return normalized.slice(0,pack.index).replace(/[\s/_-]+$/,'').replace(/(\d)\s*mg\b/gi,'$1밀리그램').trim();
+}
+function groupSkuPacks(skus,show){
+ const families=new Map();
+ for(const node of skus){const name=skuStrengthName(node.name);if(!families.has(name))families.set(name,[]);families.get(name).push(node)}
+ return [...families].map(([name,items])=>{
+  const sum={name,months:Object.fromEntries(show.map(m=>[m,0])),now:0,prev:0,avg:0,prevDiff:0,avgDiff:0};
+  for(const node of items){for(const k of ['now','prev','avg','prevDiff','avgDiff'])sum[k]+=node.subtotal[k];for(const m of show)sum.months[m]+=N(node.subtotal.months[m])}
+  sum.rate=sum.avg?sum.now/sum.avg:0;
+  return{name,items,subtotal:sum};
+ });
+}
 function matrixOrder(a,b,key,dir){
  const sign=dir==='asc'?1:-1;
  if(key==='name'||key==='vendor')return sign*String(a.name).localeCompare(String(b.name),'ko');
@@ -131,20 +149,29 @@ function renderSkuMatrix(t,vendor,group){
   if(singleVendor)return[sku,matrixExcel(p.now),matrixExcel(p.prev),matrixExcel(p.prevDiff),matrixExcel(p.avg),matrixExcel(p.avgDiff),...show.map(m=>matrixExcel(p.months[m]))];
   return[sku,v,matrixExcel(p.now),Number.isFinite(share)?Number((share*100).toFixed(2)):'',matrixExcel(p.prev),matrixExcel(p.prevDiff),matrixExcel(p.avg),matrixExcel(p.avgDiff),...show.map(m=>matrixExcel(p.months[m]))];
  }
- ordered.forEach((node,i)=>{
+ const families=groupSkuPacks(ordered,show).sort((a,b)=>matrixOrder(a.subtotal,b.subtotal,skuKey,cDir));
+ const fold=(id,label)=>`<button type="button" class="sku-v115-fold" data-sku-v115-fold="${id}" aria-expanded="false" aria-label="${X(label)} 펼치기">▸</button>`;
+ const ancestry=ids=>ids.length?` hidden data-sku-v115-parent="${ids.at(-1)}" data-sku-v121-ancestors="${ids.join(' ')}"`:'';
+ function emitSku(node,id,parents=[]){
   const sum=node.subtotal,n=node.details.length,vendorKey=cSort==='name'?'now':cSort;
   if(singleVendor){
-   rows.push(`<tr class="sku-v115-single-row"><td title="${X(node.name)}">${X(node.name)}</td>${cols(sum,null)}</tr>`);
-   excel.push(exportRow(node.name,vendor,sum,null));
-   return;
+   rows.push(`<tr${ancestry(parents)} class="sku-v115-single-row"><td title="${X(node.name)}">${parents.length?'↳ ':''}${X(node.name)}</td>${cols(sum,null)}</tr>`);
+   excel.push(exportRow(node.name,vendor,sum,null));return;
   }
   node.details.sort((a,b)=>matrixOrder(a,b,vendorKey,cDir));
-  rows.push(`<tr class="sku-v115-subtotal"><td title="${X(node.name)}"><button type="button" class="sku-v115-fold" data-sku-v115-fold="${i}" aria-expanded="false" aria-label="${X(node.name)} 업체 상세 펼치기">▸</button>${X(node.name)} <span style="font-size:10px;color:#9dbfd3">${n}개 업체</span></td><td>SKU 소계</td>${cols(sum,sum.now>0?1:null)}</tr>`);
+  rows.push(`<tr${ancestry(parents)} class="sku-v115-subtotal"><td title="${X(node.name)}">${fold(id,node.name+' 업체 상세')}${X(node.name)} <span style="font-size:10px;color:#9dbfd3">${n}개 업체</span></td><td>SKU 소계</td>${cols(sum,sum.now>0?1:null)}</tr>`);
   excel.push(exportRow(node.name,'SKU 소계',sum,sum.now>0?1:null));
   node.details.forEach(d=>{
-   rows.push(`<tr hidden class="sku-v115-detail" data-sku-v115-parent="${i}"><td title="${X(node.name)}">↳ ${X(node.name)}</td><td title="${X(d.name)}">${X(d.name)}</td>${cols(d,d.share)}</tr>`);
+   rows.push(`<tr${ancestry([...parents,id])} class="sku-v115-detail"><td title="${X(node.name)}">↳ ${X(node.name)}</td><td title="${X(d.name)}">${X(d.name)}</td>${cols(d,d.share)}</tr>`);
    excel.push(exportRow(node.name,d.name,d,d.share));
   });
+ }
+ families.forEach((family,i)=>{
+  if(family.items.length===1){emitSku(family.items[0],'s'+i);return}
+  const id='f'+i,label=family.name+' 합계';
+  rows.push(`<tr class="sku-v115-subtotal sku-v121-strength"><td title="${X(label)}">${fold(id,label+' 포장단위')}${X(label)}</td>${singleVendor?'':'<td>포장단위 합계</td>'}${cols(family.subtotal,singleVendor?null:(family.subtotal.now>0?1:null))}</tr>`);
+  excel.push(exportRow(label,singleVendor?vendor:'포장단위 합계',family.subtotal,singleVendor?null:(family.subtotal.now>0?1:null)));
+  family.items.forEach((node,j)=>emitSku(node,'s'+i+'_'+j,[id]));
  });
  if(ordered.length){
   if(!singleVendor||ordered.length>1){
@@ -159,7 +186,7 @@ function renderSkuMatrix(t,vendor,group){
  t.dataset.skuV115Signature=signature;
  const summary=skuSummary(t);
  if(summary){summary.hidden=false;summary.innerHTML=skuScope(group,vendor)+
-  `<span>SKU<strong>${r.skuCount}종</strong></span>${singleVendor?'':`<span>업체<strong>${r.vendorCount}개</strong></span>`}<span>${mm} 누계<strong>${matrixW(r.grand.now)}억</strong></span><span>${prevName} 대비<strong>${r.grand.prevDiff>0?'+':''}${matrixW(r.grand.prevDiff)}억</strong></span><small>${singleVendor?'선택 업체의 SKU별 매출을 한 행씩 표시합니다.':'SKU 왼쪽 ▸를 누르면 업체별 매출·비중을 펼쳐 볼 수 있습니다.'} 진행월 누계와 직전월 마감 실적을 비교합니다. 과거 월별 실적은 오른쪽에서 확인하세요. 단위: 억 원.</small>`}
+  `<span>SKU<strong>${r.skuCount}종</strong></span>${singleVendor?'':`<span>업체<strong>${r.vendorCount}개</strong></span>`}<span>${mm} 누계<strong>${matrixW(r.grand.now)}억</strong></span><span>${prevName} 대비<strong>${r.grand.prevDiff>0?'+':''}${matrixW(r.grand.prevDiff)}억</strong></span><small>${singleVendor?'같은 제품·함량의 포장단위를 합산합니다. 합계 왼쪽 ▸를 누르면 세부 SKU를 볼 수 있습니다.':'합계 왼쪽 ▸는 포장단위 SKU를, SKU 왼쪽 ▸는 업체별 매출·비중을 펼칩니다.'} 진행월 누계와 직전월 마감 실적을 비교합니다. 과거 월별 실적은 오른쪽에서 확인하세요. 단위: 억 원.</small>`}
 
  window.__SF_SKU_VENDOR_EXPORT={month:cur(),group,vendor,rows:excel,count:r.skuCount};
 }
@@ -182,7 +209,7 @@ function renderMboSummary(){const t=$('#groupTargetTable'),panel=t?.closest('sec
 function renderMbo(){const t=$('#groupTargetTable'),input=$('#groupMbo');if(!t||!input||!cur())return;const {g,v}=mboValue();if(!g||g===ALL_PRODUCTS||v==null){if(g&&v==null&&window.__sfRenderGroupWithoutMbo?.())return;for(const id of ['groupCurrent','groupRate','groupNeed']){const el=$('#'+id);if(el){el.textContent='—';el.classList.remove('good','warn','bad','info','sf-tone-positive','sf-tone-caution','sf-tone-warning','sf-tone-negative','sf-tone-info');el.classList.add('sf-tone-neutral')}}const description=t.closest('section.panel')?.querySelector('.head p');if(description)description.textContent='제품군을 선택하면 현재 실적과 업체별 목표·추가 필요액을 확인할 수 있습니다.';t.innerHTML='<tbody><tr><td>제품군을 선택하고 MBO를 입력하세요.</td></tr></tbody>';return}for(const id of ['groupCurrent','groupRate','groupNeed'])$('#'+id)?.classList.remove('sf-tone-neutral');delete t.dataset.noMboFinal;const target=v*1e8,{hist,show,last}=history(),allRows=all(),maps={};[...show,cur()].forEach(m=>maps[m]=map(allRows.filter(r=>r.d?.slice(0,7)===m&&r.g===g),'v'));const monthMap=m=>map(allRows.filter(r=>r.d?.slice(0,7)===m&&r.g===g),'v'),avg={},now=maps[cur()]||{};KEY.forEach(k=>avg[k]=hist.length?hist.reduce((s,m)=>s+N(monthMap(m)[k]),0)/hist.length:0);const outsideHist=hist.map(m=>{const mp=monthMap(m);return Object.keys(mp).filter(k=>!KEY.includes(k)).reduce((s,k)=>s+N(mp[k]),0)}),outsideAvg=outsideHist.length?outsideHist.reduce((a,b)=>a+b,0)/outsideHist.length:0,outsideNow=Object.keys(now).filter(k=>!KEY.includes(k)).reduce((s,k)=>s+N(now[k]),0),curTotal=KEY.reduce((s,k)=>s+N(now[k]),0)+outsideNow,totalNeed=Math.max(0,target-curTotal),closed=closedSet(),open=KEY.filter(k=>!closed.has(k)),openAvg=open.reduce((s,k)=>s+N(avg[k]),0);let remain=totalNeed;const alloc={};open.forEach((k,i)=>{const share=openAvg?N(avg[k])/openAvg:1/Math.max(1,open.length);const add=i===open.length-1?remain:Math.round(totalNeed*share);alloc[k]=add;if(i!==open.length-1)remain-=add});let rows=KEY.map(k=>{const mo=Object.fromEntries(show.map(m=>[m,N(maps[m]?.[k])])),current=N(now[k]),prev=N(maps[last]?.[k]),isClosed=closed.has(k),add=isClosed?0:N(alloc[k]);return{name:k,months:mo,avg:N(avg[k]),now:current,prevDiff:current-prev,avgDiff:current-N(avg[k]),rate:avg[k]?current/avg[k]:0,target:current+add,need:add,closed:isClosed}});sortRows(rows,mSort,mDir);const outsideMo=Object.fromEntries(show.map(m=>{const mp=maps[m]||{};return[m,Object.keys(mp).filter(k=>!KEY.includes(k)).reduce((s,k)=>s+N(mp[k]),0)]}));const current=$('#groupCurrent'),rate=$('#groupRate'),need=$('#groupNeed');if(current)current.textContent=W(curTotal)+'억';if(rate)rate.textContent=target?`${(curTotal/target*100).toFixed(1)}%`:'-';if(need)need.textContent=W(totalNeed)+'억';t.innerHTML=`<thead><tr>${th('name','업체',mSort,mDir)}${show.map(m=>th('m:'+m,m.slice(2).replace('-','.'),mSort,mDir)).join('')}${th('avg','확정월 평균',mSort,mDir)}${th('now','진행월 현재',mSort,mDir)}${th('prevDiff','직전월 대비 현재 증감',mSort,mDir)}${th('avgDiff','확정월 평균 대비 현재 증감',mSort,mDir)}${th('rate','확정월 평균 대비 현재 매출율',mSort,mDir)}${th('target','업체 목표',mSort,mDir)}${th('need','추가 필요',mSort,mDir)}</tr></thead><tbody>${rows.map(r=>`<tr class="${r.closed?'v73-closed':''}"><td>${X(r.name)}${r.closed?'<span class="v73-badge">마감 완료</span>':''}</td>${show.map(m=>`<td>${W(r.months[m])}</td>`).join('')}<td>${W(r.avg)}</td><td class="v61-current">${W(r.now)}</td><td class="${r.prevDiff>=0?'v61-pos':'v61-neg'}">${r.prevDiff>=0?'+':''}${W(r.prevDiff)}</td><td class="${r.avgDiff>=0?'v61-pos':'v61-neg'}">${r.avgDiff>=0?'+':''}${W(r.avgDiff)}</td><td class="${r.rate>=1?'v61-pos':'v61-neg'}">${RB(r.rate)}</td><td class="v61-target">${W(r.target)}</td><td class="${r.closed?'v61-pos':'v61-need'}">${W(r.need)}</td></tr>`).join('')}<tr class="subtotal"><td>권역 외 업체</td>${show.map(m=>`<td>${W(outsideMo[m])}</td>`).join('')}<td>${W(outsideAvg)}</td><td>${W(outsideNow)}</td><td>-</td><td>${outsideNow-outsideAvg>=0?'+':''}${W(outsideNow-outsideAvg)}</td><td class="${outsideAvg&&outsideNow/outsideAvg>=1?'v61-pos':'v61-neg'}">${RB(outsideAvg?outsideNow/outsideAvg:0)}</td><td>${W(outsideNow)}</td><td class="v61-pos">0.0</td></tr><tr class="subtotal"><td>합계</td>${show.map(m=>`<td>${W(KEY.reduce((s,k)=>s+N(maps[m]?.[k]),0)+N(outsideMo[m]))}</td>`).join('')}<td>${W(KEY.reduce((s,k)=>s+N(avg[k]),0)+outsideAvg)}</td><td>${W(curTotal)}</td><td colspan="3"></td><td class="v61-target">${W(target)}</td><td class="v61-need">${W(totalNeed)}</td></tr></tbody>`;const p=t.closest('section.panel')?.querySelector('.head p');if(p)p.textContent=`${g} · 마감 완료 업체는 추가 필요 0, 남은 추가 필요액은 미마감 업체의 확정월 평균 비중으로 재배분합니다.`;fitHistory(t,show.length)}
 function context(){const sec=$('#groupTable')?.closest('section.panel');if(!sec)return;sec.querySelectorAll('.v52-group-banner,.v54-context,.v58-context,.v61-context').forEach((x,i)=>{if(i||!x.classList.contains('v61-context'))x.remove()});let b=sec.querySelector('.v61-context');if(!b){b=document.createElement('div');b.className='v61-context';sec.querySelector('.head')?.insertAdjacentElement('afterend',b)}const name=upperVendor||sec.querySelector('.scope-badge strong')?.textContent?.trim()||'전체 업체';b.innerHTML=`<span>선택 업체</span><strong>${X(name)}</strong><span class="arr">→</span><span>제품군 월별 현황</span>`}
 function run(){if(busy)return;busy=true;try{if(!productSelectionReady)restoreProductSelection('init');style();renderGroup();renderSku();renderMboSummary();renderMbo();context()}finally{busy=false}}
-document.addEventListener('click',e=>{const clear=e.target.closest('[data-sf-clear-product]');if(clear){e.preventDefault();syncProductSelection('','clear');setTimeout(run,20);return}const b=e.target.closest('#v51CompareTable [data-sku-v115-fold]');if(b){e.preventDefault();e.stopPropagation();const t=$('#v51CompareTable'),id=b.dataset.skuV115Fold,collapsed=b.getAttribute('aria-expanded')==='true';t?.querySelectorAll('tr[data-sku-v115-parent="'+id+'"]')?.forEach(x=>x.hidden=collapsed);b.setAttribute('aria-expanded',String(!collapsed));b.textContent=collapsed?'▸':'▾';return}const gh=e.target.closest('#groupTable th[data-v61]');if(gh){e.preventDefault();e.stopPropagation();const k=gh.dataset.v61;if(gSort===k)gDir=gDir==='asc'?'desc':'asc';else{gSort=k;gDir=k==='name'?'asc':'desc'}renderGroup();return}const sh=e.target.closest('#v51CompareTable th[data-v61]');if(sh){const k=sh.dataset.v61;if(cSort===k)cDir=cDir==='asc'?'desc':'asc';else{cSort=k;cDir=k==='name'?'asc':'desc'}renderSku();return}const mh=e.target.closest('#groupTargetTable th[data-v61]');if(mh){const k=mh.dataset.v61;if(mSort===k)mDir=mDir==='asc'?'desc':'asc';else{mSort=k;mDir=k==='name'?'asc':'desc'}renderMbo();return}const vr=e.target.closest('#vendorTable tr');if(vr){const reset=vr.matches('[data-v39-reset],.v39-overview,.overview-row')||e.target.closest('.overview-cta');upperVendor=reset?'':(vr.dataset.v39||vr.dataset.v||vr.cells?.[1]?.innerText?.trim()||'');setTimeout(()=>{renderGroup();context()},20)}const gr=e.target.closest('#groupTable [data-v61-group]');if(gr){window.__sfPopulateSkuGroups?.();syncProductSelection(gr.dataset.v61Group||'','row');setTimeout(run,20)}},true);
+document.addEventListener('click',e=>{const clear=e.target.closest('[data-sf-clear-product]');if(clear){e.preventDefault();syncProductSelection('','clear');setTimeout(run,20);return}const b=e.target.closest('#v51CompareTable [data-sku-v115-fold]');if(b){e.preventDefault();e.stopPropagation();const t=$('#v51CompareTable'),id=b.dataset.skuV115Fold,collapsed=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!collapsed));b.textContent=collapsed?'▸':'▾';const folds=new Map([...t.querySelectorAll('[data-sku-v115-fold]')].map(x=>[x.dataset.skuV115Fold,x.getAttribute('aria-expanded')==='true']));t.querySelectorAll('tr[data-sku-v121-ancestors]').forEach(x=>{x.hidden=x.dataset.skuV121Ancestors.split(' ').some(parent=>!folds.get(parent))});return}const gh=e.target.closest('#groupTable th[data-v61]');if(gh){e.preventDefault();e.stopPropagation();const k=gh.dataset.v61;if(gSort===k)gDir=gDir==='asc'?'desc':'asc';else{gSort=k;gDir=k==='name'?'asc':'desc'}renderGroup();return}const sh=e.target.closest('#v51CompareTable th[data-v61]');if(sh){const k=sh.dataset.v61;if(cSort===k)cDir=cDir==='asc'?'desc':'asc';else{cSort=k;cDir=k==='name'?'asc':'desc'}renderSku();return}const mh=e.target.closest('#groupTargetTable th[data-v61]');if(mh){const k=mh.dataset.v61;if(mSort===k)mDir=mDir==='asc'?'desc':'asc';else{mSort=k;mDir=k==='name'?'asc':'desc'}renderMbo();return}const vr=e.target.closest('#vendorTable tr');if(vr){const reset=vr.matches('[data-v39-reset],.v39-overview,.overview-row')||e.target.closest('.overview-cta');upperVendor=reset?'':(vr.dataset.v39||vr.dataset.v||vr.cells?.[1]?.innerText?.trim()||'');setTimeout(()=>{renderGroup();context()},20)}const gr=e.target.closest('#groupTable [data-v61-group]');if(gr){window.__sfPopulateSkuGroups?.();syncProductSelection(gr.dataset.v61Group||'','row');setTimeout(run,20)}},true);
 document.addEventListener('input',e=>{if(e.target?.id==='groupMbo'){clearTimeout(inputTm);inputTm=setTimeout(saveMbo,220)}},true);
 document.addEventListener('change',e=>{const id=e.target?.id;if(id==='month'){clearTimeout(inputTm);setTimeout(()=>{restoreProductSelection('month');run()},20)}else if(id==='groupTarget'||id==='v51Group'){if(syncingProductSelection)return;syncProductSelection(e.target.value,id);setTimeout(run,20)}else if(id==='v51Vendor'){setTimeout(run,20)}},true);
 document.addEventListener('blur',e=>{if(e.target?.id==='groupMbo'){let v=String(e.target.value||'').trim().replace(',','.');if(/^\d+\.$/.test(v))e.target.value=v.slice(0,-1);saveMbo()}},true);
