@@ -1,7 +1,9 @@
-const CACHE='scm-sales-forecast-pwa-v120';
-const SHELL=['/Sales_Forecast/','/Sales_Forecast/index.html','/Sales_Forecast/manifest.webmanifest','/Sales_Forecast/app-icon.svg'];
-self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).catch(()=>{}))});
-self.addEventListener('activate',e=>{e.waitUntil((async()=>{for(const k of await caches.keys()){if((k.startsWith('scm-sales-forecast-pwa-')&&k!==CACHE)||k.startsWith('sales-forecast-static-'))await caches.delete(k)}await self.clients.claim()})())});
-async function cacheFirst(r){const hit=await caches.match(r);if(hit)return hit;const res=await fetch(r);if(res&&res.ok){const c=await caches.open(CACHE);c.put(r,res.clone()).catch(()=>{})}return res}
-async function networkFirst(r){try{const res=await fetch(r,{cache:'no-store'});if(res&&res.ok){const c=await caches.open(CACHE);c.put(r,res.clone()).catch(()=>{})}return res}catch(err){const hit=await caches.match(r);if(hit)return hit;if(r.mode==='navigate'){const shell=await caches.match('/Sales_Forecast/');if(shell)return shell}throw err}}
-self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);if(u.origin!==location.origin||!u.pathname.startsWith('/Sales_Forecast/'))return;if(r.mode==='navigate'){e.respondWith(networkFirst(r));return}if(u.pathname.endsWith('/shared-data/sales-history.json')){e.respondWith(networkFirst(r));return}if(u.pathname.endsWith('.js')||u.pathname.endsWith('.css')){e.respondWith(networkFirst(r));return}if(u.pathname.endsWith('.svg')||u.pathname.endsWith('.webmanifest')){e.respondWith(cacheFirst(r));return}e.respondWith(cacheFirst(r))});
+// v122: HTTP caching owns versioned assets; shared data has its own verified fallback.
+// Retire only this application's obsolete CacheStorage. Never touch drafts/localStorage.
+self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
+self.addEventListener('activate', event => event.waitUntil((async () => {
+  const names = await caches.keys();
+  await Promise.all(names.filter(name => name.startsWith('scm-sales-forecast-pwa-') || name.startsWith('sales-forecast-static-')).map(name => caches.delete(name)));
+  await self.clients.claim();
+})()));
+// Deliberately no fetch handler: avoid duplicate asset/data copies and stale offline shells.
