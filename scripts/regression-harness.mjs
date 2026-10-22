@@ -336,7 +336,9 @@ if (uiStreamline.includes('dailyTable') || uiStreamline.includes('collapseDaily'
 ok('three-month visual benchmark and observer-cleanup guards present');
 
 const seedText = read('data.js');
-const seedData = JSON.parse(seedText.replace(/^window\.SEED_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
+const seedContext = {window:{}};
+new Script(seedText).runInNewContext(seedContext);
+const seedData = seedContext.window.SEED_DATA;
 if (!seedData.krHolidays2026 || !Object.keys(seedData.krHolidays2026).length) fail('KR holiday calendar is missing from seed data');
 const currentMbo = Number(shared.mbo?.[currentMonth] || 0);
 const currentTotal = currentRows.reduce((s,r)=>s+Number(r.a ?? r.amount ?? 0),0);

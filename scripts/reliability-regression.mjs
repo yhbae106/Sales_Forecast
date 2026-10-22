@@ -133,12 +133,13 @@ await test('accepting an upload cannot silently rebase an unsaved setting over a
   assert.equal(runtime.window.__sfSettingsBase.mbo['2026-10'],250);assert.equal(runtime.views.at(-1).saveState,'error');
   await assert.rejects(runtime.window.__sfPublishSettings(),/다른 사용자가 같은 설정/);assert.equal(runtime.current().mbo['2026-10'],270);assert.equal(runtime.requests.filter(r=>r.method==='PUT').length,1);
 });
-await test('service worker never substitutes the HTML shell for a missing JavaScript asset',async()=>{
-  let respond;const listeners={};const shell={kind:'html'};
-  const context=vm.createContext({self:{addEventListener:(name,listener)=>listeners[name]=listener},location:{origin:'https://example.test'},URL,caches:{match:async request=>request==='/Sales_Forecast/'?shell:null},fetch:async()=>{throw new Error('offline')},Response});
+await test('service worker retires only owned caches and never intercepts data or assets',async()=>{
+  const listeners={},deleted=[];let activation,claimed=false;
+  const context=vm.createContext({self:{addEventListener:(name,listener)=>listeners[name]=listener,clients:{claim:async()=>{claimed=true;}}},caches:{keys:async()=>['scm-sales-forecast-pwa-v120','sales-forecast-static-old','partner-cache','unrelated'],delete:async name=>deleted.push(name)}});
   vm.runInContext(fs.readFileSync(new URL('../service-worker.js',import.meta.url),'utf8'),context);
-  listeners.fetch({request:{method:'GET',url:'https://example.test/Sales_Forecast/missing.js',mode:'cors'},respondWith:p=>{respond=p;}});await assert.rejects(respond,/offline/);
-  listeners.fetch({request:{method:'GET',url:'https://example.test/Sales_Forecast/',mode:'navigate'},respondWith:p=>{respond=p;}});assert.equal(await respond,shell);
+  assert.equal(listeners.fetch,undefined,'HTTP cache must own requests without stale cache fallback');
+  listeners.activate({waitUntil:p=>{activation=p;}});await activation;
+  assert.deepEqual(deleted,['scm-sales-forecast-pwa-v120','sales-forecast-static-old']);assert.ok(claimed);
 });
 function bootstrapRuntime(request,{local={},expected=null}={}){
   const values=storage({sales_forecast_v16:JSON.stringify(local)}),session=storage(expected?{sales_forecast_expected_shared_v98:JSON.stringify(expected)}:{}),nodes={'#status':{},'#asof':{}},loaded=[];
