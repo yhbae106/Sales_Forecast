@@ -249,6 +249,12 @@ if (!radar.includes('displayHist=allMonths.filter(x=>x<m&&total(x)>0)')) fail('d
 if (!radar.includes('hist=displayHist.slice(-5)')) fail('forecast logic must remain limited to the recent five confirmed months');
 if (!radar.includes('a.displayHist?.length?a.displayHist:a.hist')) fail('close-trend chart must render the full available history');
 if (!radar.includes('sf-radar-trend-scroll')) fail('close-trend chart must provide horizontal access to older months');
+if (!radar.includes('paint-order="stroke fill"')) fail('close-trend numeric labels must retain a dark outline for contrast');
+if (!radar.includes('fill="#F1F5F9" stroke="#07111F" stroke-width="3.2"')) fail('historical close values must use high-contrast outlined labels');
+if (!radar.includes('fill="#D9FFF9" stroke="#04101D" stroke-width="4"')) fail('current-month value must use the stronger outlined label');
+const trendLineAt=radar.indexOf("<polyline points=");
+const histValueAt=radar.indexOf('fill="#F1F5F9"');
+if (trendLineAt<0||histValueAt<trendLineAt) fail('historical numeric labels must render after the trend line so the line cannot cover them');
 
 if (!radar.includes('allClosed=KEY.every(name=>closed.has(name))')) fail('decision radar must detect all managed vendors closed');
 if (!radar.includes("const E1=v=>Math.round((N(v)/1e8)*10)/10")) fail('decision radar must compare MBO status using displayed one-decimal eok values');
