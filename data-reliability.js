@@ -21,6 +21,26 @@
     return {first:dates[0]||'',last:dates.at(-1)||'',total:rows.reduce((s,r)=>s+Number(amountOf(r)),0),dateCount:dates.length,rowCount:rows.length};
   }
   function lastDataDate(shared){return monthSummary(shared||{}).last;}
+  function koreaDate(value=Date.now()){
+    try{
+      const d=new Date(value);if(!Number.isFinite(d.getTime()))return'';
+      const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
+      const out=parts.year+'-'+parts.month+'-'+parts.day;return validDate(out)?out:'';
+    }catch(e){return''}
+  }
+  function fileDate(fileName){
+    const m=String(fileName||'').trim().match(/^(\d{2})(\d{2})(\d{2})(?:\D|$)/);if(!m)return'';
+    const out='20'+m[1]+'-'+m[2]+'-'+m[3];return validDate(out)?out:'';
+  }
+  function sourceAsOfDate(shared,month,fallback=''){
+    const m=month||String(fallback||'').slice(0,7),last=fallback||monthSummary(shared||{},m).last;if(!m)return last||'';
+    const sources=(shared?.sourceFiles||[]).filter(s=>(s.month||String(s.lastDate||s.date||'').slice(0,7))===m);
+    if(!sources.length)return last||'';
+    const rank=s=>String(s.uploadDate||fileDate(s.fileName)||koreaDate(s.uploadedAt)||s.lastDate||s.date||'');
+    const source=sources.slice().sort((a,b)=>rank(b).localeCompare(rank(a)))[0];
+    const candidate=source.uploadDate||fileDate(source.fileName)||koreaDate(source.uploadedAt)||'';
+    return validDate(candidate)&&candidate.slice(0,7)===m&&(!last||candidate>=last)?candidate:(last||candidate);
+  }
   function validateShared(shared){
     if(!object(shared)||!Array.isArray(shared.uploads))throw new Error('공용 매출 자료의 형식이 올바르지 않습니다.');
     if(shared.sourceFiles!==undefined&&!Array.isArray(shared.sourceFiles))throw new Error('원본 파일 목록의 형식이 올바르지 않습니다.');
@@ -32,6 +52,7 @@
     const latest=new Map();
     for(const src of shared.sourceFiles||[]){
       if(!object(src))throw new Error('원본 파일 정보의 형식이 올바르지 않습니다.');
+      if(src.uploadDate!==undefined&&!validDate(String(src.uploadDate)))throw new Error('원본 파일 업로드 기준일의 형식이 올바르지 않습니다.');
       if(src.month&&(!latest.has(src.month)||String(src.lastDate||src.date||'')>=String(latest.get(src.month).lastDate||latest.get(src.month).date||'')))latest.set(src.month,src);
     }
     for(const [month,src] of latest){
@@ -143,23 +164,24 @@
     const uploads=shared.uploads||[],replaced=new Set(uploads.map(dateOf)),seed=browser.SEED_DATA?.dailyRecords||[];
     const combined={uploads:[...seed.filter(row=>!replaced.has(dateOf(row))),...uploads]};
     const summary=monthSummary(combined,month),cutoff=summary.last;
-    const asof=doc.getElementById('asof');if(asof&&cutoff)asof.textContent=Number(cutoff.slice(5,7))+'/'+Number(cutoff.slice(8))+' 실적 기준';
+    const sources=(shared.sourceFiles||[]).filter(s=>!month||s.month===month).sort((a,b)=>String(b.uploadDate||fileDate(b.fileName)||b.lastDate||b.date||'').localeCompare(String(a.uploadDate||fileDate(a.fileName)||a.lastDate||a.date||'')));
+    const source=sources[0],asOf=source?sourceAsOfDate(shared,month,cutoff):cutoff,basis=source?'업로드 기준':'실적 기준';
+    const asof=doc.getElementById('asof');if(asof&&asOf)asof.textContent=Number(asOf.slice(5,7))+'/'+Number(asOf.slice(8))+' '+basis;
     const label={loading:'공용 자료 확인 중',live:'공용 자료 확인 완료',cached:'이전 저장 자료 · 최신 확인 실패',unavailable:'내장 기준자료 · 최신 확인 실패'}[view.kind]||'자료 확인 필요';
     box.dataset.state=view.saveState==='error'?'error':view.kind;
-    box.querySelector('summary').textContent=(cutoff?'실적 기준 '+cutoff:'실적 기준일 확인 필요')+' · '+label+(view.saveState==='saving'?' · 저장 중':view.saveState==='error'?' · 저장 확인 필요':'');
+    box.querySelector('summary').textContent=(asOf?basis+' '+asOf:'기준일 확인 필요')+' · '+label+(view.saveState==='saving'?' · 저장 중':view.saveState==='error'?' · 저장 확인 필요':'');
     const body=box.querySelector('div');body.replaceChildren();
     const line=text=>{const p=doc.createElement('p');p.textContent=text;body.appendChild(p);};
-    const sources=(shared.sourceFiles||[]).filter(s=>!month||s.month===month).sort((a,b)=>String(b.lastDate||b.date||'').localeCompare(String(a.lastDate||a.date||'')));
-    const source=sources[0];
-    line(source?'원본 파일: '+(source.fileName||'파일명 기록 없음')+' · '+(source.lastDate||source.date||'기준일 기록 없음'):'원본 파일: '+(view.kind==='cached'?'이 브라우저에 이전 저장된 자료와 내장 기준자료입니다.':seed.length?'이 월은 내장 기준자료를 포함합니다. 별도 원본 파일 기록은 없습니다.':'이 자료에는 원본 파일 기록이 없습니다.'));
+    line(source?'원본 파일: '+(source.fileName||'파일명 기록 없음')+' · 실적 수록 '+(source.firstDate||summary.first||'시작일 확인 필요')+' ~ '+(source.lastDate||source.date||cutoff||'마지막 실적일 확인 필요'):'원본 파일: '+(view.kind==='cached'?'이 브라우저에 이전 저장된 자료와 내장 기준자료입니다.':seed.length?'이 월은 내장 기준자료를 포함합니다. 별도 원본 파일 기록은 없습니다.':'이 자료에는 원본 파일 기록이 없습니다.'));
     if(source?.mergeMode)line('파일 반영: '+(source.mergeMode==='date-patch'?'수록 일자 추가·교체':'월 자료 교체')+(source.inputFirstDate?' · 파일 수록 '+source.inputFirstDate+' ~ '+(source.inputLastDate||source.inputFirstDate):''));
     line((month?month+' · ':'')+summary.rowCount.toLocaleString('ko-KR')+'개 매출 행 · '+summary.dateCount+'개 수록 일자'+(source&&source.total!==undefined&&Math.abs(summary.total-Number(source.total))<=.5?' · 저장된 월 누계 대조 완료':''));
     if(view.checkedAt)line('마지막 공용 자료 확인: '+stamp(view.checkedAt)+' (한국시간)');
-    if(shared.updatedAt)line('공용 자료·설정 저장: '+stamp(shared.updatedAt)+' (한국시간) · 실적 기준일과 별도입니다.');
+    if(shared.updatedAt)line('공용 자료·설정 저장: '+stamp(shared.updatedAt)+' (한국시간) · 업로드 기준일과 별도입니다.');
+    if(source)line('업로드 기준일 '+asOf+'까지 신규 매출이 없으면 마지막 실적일 이후 구간은 0매출로 반영해 진행률을 계산합니다.');
     line('현재 매출은 업로드된 실적 합계입니다. 월말 예상과 추가 매출은 과거 수금 단계·영업일·업체 마감을 반영한 추정값입니다. 운영 범위 230~270억 및 이월 가능성은 기존 산정 기준을 따릅니다.');
     if(view.message)line(view.message);
     if(view.kind==='cached'||view.kind==='unavailable'||view.saveState==='error'){const retry=doc.createElement('button');retry.type='button';retry.textContent='새로고침하여 다시 확인';retry.onclick=()=>browser.location.reload();body.appendChild(retry);}
   }
   function install(win){browser=win;win.addEventListener('sf-core-ready',renderProof);win.addEventListener('sf-data-refreshed',()=>queueMicrotask(renderProof));win.document.addEventListener('change',e=>{if(e.target?.id==='month')queueMicrotask(renderProof);});renderProof();}
-  return {requestJson,validateShared,monthSummary,lastDataDate,same,changes,applyChanges,mergeUpload,createWriter,setView,getView:()=>({...view}),install,renderProof,validDate};
+  return {requestJson,validateShared,monthSummary,lastDataDate,sourceAsOfDate,koreaDate,same,changes,applyChanges,mergeUpload,createWriter,setView,getView:()=>({...view}),install,renderProof,validDate};
 });
