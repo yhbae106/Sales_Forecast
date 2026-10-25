@@ -4,8 +4,9 @@ const reliability=window.SFDataReliability,controller=new AbortController(),gene
 window.addEventListener('pagehide',()=>controller.abort(),{once:true});
 const $=s=>document.querySelector(s),status=m=>{const e=$('#status');if(e)e.textContent=m};
 const setBrand=()=>{const e=$('.eyebrow'),h=$('.top h1');if(e)e.textContent='SCM SALES Forecast CONTROL TOWER';if(h)h.textContent='종합도매 매출 · MBO 운영 대시보드';document.title='SCM SALES Forecast CONTROL TOWER | 종합도매 매출 · MBO 운영 대시보드'};
-const short=d=>d?Number(d.slice(5,7))+'/'+Number(d.slice(8))+'까지 반영 완료':'공용 데이터 대기';
-const asofText=d=>d?Number(d.slice(5,7))+'/'+Number(d.slice(8))+' 실적 기준':'실적 기준일 확인 필요';
+const md=d=>d?Number(d.slice(5,7))+'/'+Number(d.slice(8)):'-';
+const short=(asOf,last,basis)=>asOf?(basis==='upload'?md(asOf)+' 업로드 기준 · 실적 '+md(last)+'까지 반영 완료':md(asOf)+' 실적 기준'):'공용 데이터 대기';
+const asofText=(d,basis)=>d?md(d)+' '+(basis==='upload'?'업로드 기준':'실적 기준'):'기준일 확인 필요';
 const load=src=>window.__sfLoadScript(src);
 const waitSeed=(max=15000)=>new Promise((resolve,reject)=>{if(window.SEED_DATA?.dailyRecords?.length)return resolve(true);const started=Date.now(),id=setInterval(()=>{if(window.SEED_DATA?.dailyRecords?.length){clearInterval(id);resolve(true)}else if(controller.signal.aborted||Date.now()-started>=max){clearInterval(id);reject(new Error('기준 매출 자료를 불러오지 못했습니다. 다시 확인해 주세요.'))}},40)});
 function monthTotal(shared,month){return reliability.monthSummary(shared,month).total}
@@ -24,15 +25,15 @@ async function readSharedApi(){
   throw lastError||new Error('공용 자료를 확인하지 못했습니다.');
 }
 function lastDate(shared){return reliability.lastDataDate(shared)}
-function displayDate(shared,dataLast){return dataLast||''}
-function applyDisplayDate(){const d=window.__SF_DISPLAY_DATE||window.__SF_SHARED_LAST||'';if(d){if(reliability.getView().kind==='live')status(short(d));const a=$('#asof');if(a)a.textContent=asofText(d)}}
+function displayDate(shared,dataLast){const month=String(dataLast||'').slice(0,7),hasSource=!!(shared?.sourceFiles||[]).some(s=>(s.month||String(s.lastDate||s.date||'').slice(0,7))===month);window.__SF_DATE_BASIS=hasSource?'upload':'sales';return hasSource?reliability.sourceAsOfDate(shared,month,dataLast):(dataLast||'')}
+function applyDisplayDate(){const d=window.__SF_DISPLAY_DATE||window.__SF_SHARED_LAST||'',last=window.__SF_SHARED_LAST||d,basis=window.__SF_DATE_BASIS||'sales';if(d){if(reliability.getView().kind==='live')status(short(d,last,basis));const a=$('#asof');if(a)a.textContent=asofText(d,basis)}}
 function readLocal(){try{return JSON.parse(localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}')}catch(e){return{}}}
 async function hydrate(){
   const shared=await readSharedApi();
   if(controller.signal.aborted||generation!==window.__sfBootstrapGeneration){const error=new Error('이전 자료 확인을 취소했습니다.');error.name='AbortError';throw error}
   const up=shared.uploads;window.__SF_SHARED_UPLOADS=up;window.__sfSharedMeta=shared;window.__SF_UI_TEXT=shared.uiText&&typeof shared.uiText==='object'?shared.uiText:{};window.__SF_DASHBOARD_THEME='default';document.documentElement.dataset.sfTheme='default';window.__SF_LAST_UPLOAD_DIFF=shared.lastUploadDiff||null;window.__sfReadShared=window.__sfReadShared||readSharedApi;
   const local=readLocal();let localClosed={};try{localClosed=JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){}
-  const lean={mbo:shared.mbo??local.mbo??{},gmbo:shared.gmbo??local.gmbo??local.groupMbo??{},sched:shared.sched??local.sched??{},up};
+  const lean={mbo:shared.mbo??local.mbo??{},gmbo:shared.gmbo??local.gmbo??local.groupMbo??{},sched:shared.sched??local.sched??{},up,sourceFiles:shared.sourceFiles||[]};
   window.__SF_BOOTSTRAP_LEAN=lean;window.__SF_SHARED_CLOSED=shared.closedVendors??localClosed;
   try{localStorage.setItem(STORE,JSON.stringify(lean));localStorage.setItem(CLOSE_KEY,JSON.stringify(window.__SF_SHARED_CLOSED));window.__SF_SHARED_STORAGE_FAILED=false}catch(e){window.__SF_SHARED_STORAGE_FAILED=true}
   const last=lastDate(shared);window.__SF_SHARED_LAST=last;window.__SF_DISPLAY_DATE=displayDate(shared,last);
@@ -41,9 +42,9 @@ async function hydrate(){
 function installMemoryStore(){if(!window.__SF_SHARED_STORAGE_FAILED)return()=>{};const orig=Storage.prototype.getItem;Storage.prototype.getItem=function(k){if(this===localStorage&&(k===STORE||k==='sales_forecast_v15'))return JSON.stringify(window.__SF_BOOTSTRAP_LEAN||{});if(this===localStorage&&k===CLOSE_KEY)return JSON.stringify(window.__SF_SHARED_CLOSED||{});return orig.call(this,k)};return()=>{Storage.prototype.getItem=orig}}
 function useCached(error){
   const local=readLocal();let cached=null;
-  try{cached=validateShared({uploads:local.up||local.uploadRows||local.uploads||[],sourceFiles:[]})}catch(e){window.__SF_BOOTSTRAP_LEAN={mbo:{},gmbo:{},sched:{},up:[]};window.__SF_SHARED_STORAGE_FAILED=true}
+  try{cached=validateShared({uploads:local.up||local.uploadRows||local.uploads||[],sourceFiles:local.sourceFiles||[]})}catch(e){window.__SF_BOOTSTRAP_LEAN={mbo:{},gmbo:{},sched:{},up:[]};window.__SF_SHARED_STORAGE_FAILED=true}
   const hasCached=!!cached?.uploads.length;
-  window.__SF_DISPLAY_DATE=hasCached?lastDate(cached):'';window.__SF_SHARED_LAST=window.__SF_DISPLAY_DATE;
+  window.__SF_SHARED_LAST=hasCached?lastDate(cached):'';window.__SF_DISPLAY_DATE=hasCached?displayDate(cached,window.__SF_SHARED_LAST):'';
   reliability.setView({kind:hasCached?'cached':'unavailable',shared:cached,checkedAt:'',message:error.message});
   status(hasCached?'이전 저장 자료를 표시합니다. 최신 공용 자료 확인에 실패했습니다.':'최신 공용 자료 확인에 실패했습니다. 내장 기준자료를 불러옵니다.');
 }
@@ -52,7 +53,7 @@ function useCached(error){
   const restoreStore=installMemoryStore();
   try{await load('v16-legacy.js?v=124');await waitSeed()}finally{restoreStore()}
   if(reliability.getView().kind==='unavailable'){
-    const seed={uploads:window.SEED_DATA?.dailyRecords||[],sourceFiles:[]};window.__SF_DISPLAY_DATE=lastDate(seed);reliability.setView({shared:seed});
+    const seed={uploads:window.SEED_DATA?.dailyRecords||[],sourceFiles:[]};window.__SF_SHARED_LAST=lastDate(seed);window.__SF_DISPLAY_DATE=displayDate(seed,window.__SF_SHARED_LAST);reliability.setView({shared:seed});
   }
   await load('shared-v31.js?v=124');await load('master-upload-v34.js?v=124');await load('upload-diff-v99.js?v=124');await load('kpi-layout-v37.js?v=124');await load('upper-history-v39.js?v=124');await load('vendor-mbo-gap-v43.js?v=124');await load('vendor-close-ui-v67.js?v=124');await load('boundary-forecast-v113.js?v=124');await load('forecast-progress-v81.js?v=124');await load('group-info-no-mbo-v82.js?v=124');
   setBrand();applyDisplayDate();setTimeout(applyDisplayDate,100);setTimeout(applyDisplayDate,800);
