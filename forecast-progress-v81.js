@@ -9,7 +9,7 @@ function closeState(){let local={};try{local=JSON.parse(localStorage.getItem(CLO
 function allClosed(m){const closed=new Set(closeState()[m]||[]);return KEY.every(v=>closed.has(v))}
 function build(){const z=state(),seed=window.SEED_DATA?.dailyRecords||[],up=z.up||[],sig=seed.length+'|'+up.length+'|'+(window.__SF_SHARED_LAST||'');if(cache&&sig===cacheSig)return{...cache,z};const rep=new Set(up.map(r=>r.d||r.date)),dailies={};for(const r of seed){const d=r.date;if(!d||rep.has(d))continue;(dailies[d.slice(0,7)]||(dailies[d.slice(0,7)]={}))[d]=((dailies[d.slice(0,7)]||{})[d]||0)+N(r.amount)}for(const r of up){const d=r.d||r.date;if(!d)continue;(dailies[d.slice(0,7)]||(dailies[d.slice(0,7)]={}))[d]=((dailies[d.slice(0,7)]||{})[d]||0)+N(r.a??r.amount)}const totals={};Object.entries(dailies).forEach(([m,o])=>totals[m]=Object.values(o).reduce((s,a)=>s+N(a),0));cache={dailies,totals,months:Object.keys(dailies).sort()};cacheSig=sig;return{...cache,z}}
 function biz(m){const[y,mo]=m.split('-').map(Number),a=[],kr=window.SEED_DATA?.krHolidays2026||{},custom=window.SEED_DATA?.customHolidaysByMonth||{},hol=new Set(Object.keys(kr).filter(d=>d.slice(0,7)===m));const x=custom[m];if(Array.isArray(x))x.forEach(d=>hol.add(String(d)));else if(x&&typeof x==='object')Object.keys(x).forEach(d=>hol.add(d));for(let d=new Date(y,mo-1,1);d.getMonth()===mo-1;d.setDate(d.getDate()+1)){const ds=`${y}-${String(mo).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;if(d.getDay()!=0&&d.getDay()!=6&&!hol.has(ds))a.push(ds)}return a}
-function latest(o){return Object.keys(o||{}).sort().at(-1)||null}function cum(o,d){let s=0;for(const [x,v] of Object.entries(o||{}))if(x<=d)s+=v;return s}
+function latest(o){return Object.keys(o||{}).sort().at(-1)||null}function asOfDate(m,o){const salesLast=latest(o);return window.SFDataReliability?.sourceAsOfDate(window.__sfSharedMeta||{},m,salesLast)||salesLast}function cum(o,d){let s=0;for(const [x,v] of Object.entries(o||{}))if(x<=d)s+=v;return s}
 function schedIndex(m,date){if(!date)return null;const b=biz(m),n=b.filter(x=>x<=date).length;return Math.max(0,Math.min(b.length-1,n-1))}
 function inferredBounds(cur,hist,sched){const b=biz(cur),den=Math.max(1,b.length-1),r=[[],[]];hist.forEach(m=>{const hb=biz(m),s=sched[m]||[];[0,1].forEach(k=>{const ix=schedIndex(m,s[k]);if(ix!=null&&hb.length>1)r[k].push(ix/(hb.length-1))})});const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;let r1=avg(r[0])??.55,r2=avg(r[1])??.75,a=Math.round(den*r1),c=Math.round(den*r2);a=Math.max(1,Math.min(b.length-3,a));c=Math.max(a+1,Math.min(b.length-2,c));return[a,c]}
 function bounds(m,hist,sched){const s=sched[m]||[],a=schedIndex(m,s[0]),c=schedIndex(m,s[1]);return a!=null&&c!=null&&c>a?[a,c]:inferredBounds(m,hist,sched)}
@@ -31,7 +31,7 @@ function progress(m,d,data){
 }
 function prevMonth(m){const[y,mo]=String(m||'').split('-').map(Number),d=new Date(y,mo-2,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}function cardMap(){const o={};document.querySelectorAll('#cards .card').forEach(c=>{const l=c.querySelector('.label')?.textContent?.trim();if(l)o[l]=c});return o}function setCard(c,val,sub,cls){if(!c)return;const v=c.querySelector('.value'),s=c.querySelector('.sub');if(v){v.textContent=val;v.classList.remove('good','warn','bad','info');if(cls)v.classList.add(cls)}if(s&&sub!=null)s.textContent=sub}
 function patch(){
- const m=$('#month')?.value||'',data=build(),o=data.dailies[m]||{},d=latest(o);
+ const m=$('#month')?.value||'',data=build(),o=data.dailies[m]||{},salesLast=latest(o),d=asOfDate(m,o);
  if(!m||!d)return;
  const stored=data.z.mbo?.[m],mboValue=stored==null?Number($('#mbo')?.value||0):Number(stored);
  const M=Math.max(0,Number.isFinite(mboValue)?mboValue:0)*1e8;
@@ -67,7 +67,7 @@ function patch(){
  }
  setCard(cm['예상 마감'],W(fc)+'억',forecastSub,adj?.shortfallRisk?'bad':M>0&&fc>=M?'good':'warn');
  if(M>0)setCard(cm['예상 MBO 달성률'],P(fc/M),closed?'실제 누계 ÷ MBO':'운영 보정 예상마감 ÷ MBO',fc>=M?'good':'warn');
- window.__SF_FORECAST_V81={month:m,date:d,progress:p,goalProgress,goal,forecast:fc,
+ window.__SF_FORECAST_V81={month:m,date:d,salesLast,progress:p,goalProgress,goal,forecast:fc,
   rawForecast:adj?.rawForecast??cur/p,effectiveCurrent:paceCurrent,allClosed:closed,
   boundary:adj||null,rolloverPotential:adj?.rolloverPotential||0,ruleApplied:adj?.ruleApplied||'historical-only'};
 }

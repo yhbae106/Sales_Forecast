@@ -10,9 +10,9 @@ const fixture=()=>({schemaVersion:6,updatedAt:'2026-10-21T01:00:00Z',uploads:[ro
 let count=0;
 async function test(name,run){await run();count++;console.log('RELIABILITY OK:',name);}
 const pause=async()=>{};
-await test('actual cutoff is independent of save time and upload file name',()=>{
-  const shared=fixture();assert.equal(R.lastDataDate(shared),'2026-10-20');
-  shared.updatedAt='2027-01-01T01:00:00Z';assert.equal(R.lastDataDate(shared),'2026-10-20');
+await test('sales cutoff remains factual while upload date is a separate as-of basis',()=>{
+  const shared=fixture();assert.equal(R.lastDataDate(shared),'2026-10-20');assert.equal(R.sourceAsOfDate(shared,'2026-10'),'2026-10-21');
+  shared.updatedAt='2027-01-01T01:00:00Z';assert.equal(R.lastDataDate(shared),'2026-10-20');assert.equal(R.sourceAsOfDate(shared,'2026-10'),'2026-10-21');
   assert.deepEqual(R.monthSummary(shared,'2026-10'),{first:'2026-10-20',last:'2026-10-20',total:100,dateCount:1,rowCount:1});
 });
 await test('invalid amounts, impossible dates and historical month mismatch reject the whole source',()=>{
@@ -155,7 +155,7 @@ await test('real bootstrap falls back after raw failure and retains authoritativ
   let requests=0;const shared=fixture();shared.mbo={};
   const runtime=bootstrapRuntime(async()=>{if(++requests===1)throw new Error('raw unavailable');return shared;},{local:{mbo:{'2026-10':999}}});
   await runtime.window.__bootstrapDone;
-  assert.equal(requests,2);assert.equal(runtime.view().kind,'live');assert.equal(runtime.window.__SF_DISPLAY_DATE,'2026-10-20');assert.match(runtime.nodes['#asof'].textContent,/10\/20 실적 기준/);assert.deepEqual(JSON.parse(runtime.local.getItem('sales_forecast_v16')).mbo,{});
+  assert.equal(requests,2);assert.equal(runtime.view().kind,'live');assert.equal(runtime.window.__SF_DISPLAY_DATE,'2026-10-21');assert.match(runtime.nodes['#asof'].textContent,/10\/21 업로드 기준/);assert.deepEqual(JSON.parse(runtime.local.getItem('sales_forecast_v16')).mbo,{});
 });
 await test('real bootstrap preserves a visible stale-cache state when both sources fail',async()=>{
   const runtime=bootstrapRuntime(async()=>{throw new Error('offline')},{local:{up:fixture().uploads}});await runtime.window.__bootstrapDone;
@@ -174,7 +174,7 @@ await test('superseded bootstrap response cannot hydrate data or mark a stale re
 function forecastRuntime(){
   const current=249.96e8,uploaded=[row('2026-10-20',current),row('2026-09-01',130e8),row('2026-09-29',120e8),row('2026-08-03',125e8),row('2026-08-31',125e8)];
   const document={querySelector:s=>s==='#month'?{value:'2026-10'}:s==='#mbo'?{value:'250'}:null,querySelectorAll:()=>[],addEventListener:()=>{}};
-  const local=storage({sales_forecast_v16:JSON.stringify({up:uploaded,mbo:{'2026-10':250},sched:{}})}),window={SEED_DATA:{dailyRecords:[],krHolidays2026:{'2026-10-09':'한글날'},customHolidaysByMonth:{}},addEventListener:()=>{},dispatchEvent:()=>{}};
+  const local=storage({sales_forecast_v16:JSON.stringify({up:uploaded,mbo:{'2026-10':250},sched:{}})}),window={SFDataReliability:R,__sfSharedMeta:{sourceFiles:[{month:'2026-10',fileName:'261026.xlsx',lastDate:'2026-10-20'}]},SEED_DATA:{dailyRecords:[],krHolidays2026:{'2026-10-09':'한글날'},customHolidaysByMonth:{}},addEventListener:()=>{},dispatchEvent:()=>{}};
   const context=vm.createContext({window,document,localStorage:local,setTimeout:()=>0,clearTimeout:()=>{},requestAnimationFrame:()=>{},Event});
   vm.runInContext(fs.readFileSync(new URL('../boundary-forecast-v113.js',import.meta.url),'utf8'),context);
   const radar=fs.readFileSync(new URL('../decision-radar-v93.js',import.meta.url),'utf8').replace('render();setTimeout(render,700);window.__SF_DECISION_RADAR_V94=true;','window.__radarTest={analyze,trendSvg,KEY,biz};');
@@ -185,7 +185,7 @@ function forecastRuntime(){
 }
 await test('actual radar and top forecast collapse to booked sales when all eight vendors close',()=>{
   const {window,current}=forecastRuntime();const analysis=window.__radarTest.analyze();window.__forecastTest();
-  assert.equal(analysis.allClosed,true);assert.equal(analysis.forecast,current);assert.equal(analysis.needDaily,0);assert.equal(window.__SF_FORECAST_V81.forecast,current);assert.equal(window.__SF_FORECAST_V81.allClosed,true);
+  assert.equal(analysis.allClosed,true);assert.equal(analysis.last,'2026-10-26');assert.equal(analysis.salesLast,'2026-10-20');assert.equal(analysis.forecast,current);assert.equal(analysis.needDaily,0);assert.equal(window.__SF_FORECAST_V81.date,'2026-10-26');assert.equal(window.__SF_FORECAST_V81.salesLast,'2026-10-20');assert.equal(window.__SF_FORECAST_V81.forecast,current);assert.equal(window.__SF_FORECAST_V81.allClosed,true);
   assert.equal(analysis.mboMetDisplay,true);assert.equal(analysis.closeSignal,'MBO 달성');
   const chart=window.__radarTest.trendSvg(analysis);assert.ok(!chart.includes('-0.0억'),'a displayed achieved target must not show a negative zero shortfall');assert.match(chart,/최근 3개월 평균/);
   assert.ok(!window.__radarTest.biz('2026-10').includes('2026-10-09'));
