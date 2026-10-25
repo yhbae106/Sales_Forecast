@@ -50,12 +50,12 @@ function useCached(error){
 (async()=>{
   setBrand();try{await hydrate()}catch(error){if(error.name==='AbortError')return;useCached(error)}
   const restoreStore=installMemoryStore();
-  try{await load('v16-legacy.js?v=123');await waitSeed()}finally{restoreStore()}
+  try{await load('v16-legacy.js?v=124');await waitSeed()}finally{restoreStore()}
   if(reliability.getView().kind==='unavailable'){
     const seed={uploads:window.SEED_DATA?.dailyRecords||[],sourceFiles:[]};window.__SF_DISPLAY_DATE=lastDate(seed);reliability.setView({shared:seed});
   }
-  await load('shared-v31.js?v=123');await load('master-upload-v34.js?v=123');await load('upload-diff-v99.js?v=123');await load('kpi-layout-v37.js?v=123');await load('upper-history-v39.js?v=123');await load('vendor-mbo-gap-v43.js?v=123');await load('vendor-close-ui-v67.js?v=123');await load('boundary-forecast-v113.js?v=123');await load('forecast-progress-v81.js?v=123');await load('group-info-no-mbo-v82.js?v=123');
+  await load('shared-v31.js?v=124');await load('master-upload-v34.js?v=124');await load('upload-diff-v99.js?v=124');await load('kpi-layout-v37.js?v=124');await load('upper-history-v39.js?v=124');await load('vendor-mbo-gap-v43.js?v=124');await load('vendor-close-ui-v67.js?v=124');await load('boundary-forecast-v113.js?v=124');await load('forecast-progress-v81.js?v=124');await load('group-info-no-mbo-v82.js?v=124');
   setBrand();applyDisplayDate();setTimeout(applyDisplayDate,100);setTimeout(applyDisplayDate,800);
-  await load('group-no-mbo-final-v87.js?v=123');window.__sfCoreReady=true;window.dispatchEvent(new Event('sf-core-ready'));
+  await load('group-no-mbo-final-v87.js?v=124');window.__sfCoreReady=true;window.dispatchEvent(new Event('sf-core-ready'));
 })().catch(error=>{status('대시보드 로딩 오류: '+error.message);window.__sfShowLoadError(error.message)});
 })();
