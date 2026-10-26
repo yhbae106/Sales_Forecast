@@ -210,6 +210,9 @@ if (!unified.includes("window.addEventListener('sf-detail-shell-ready'")) fail('
 if (unified.includes('show=hist.slice(-6)')) fail('product/SKU history must not drop older confirmed months');
 if (!unified.includes('show=hist;return{ms,hist,show')) fail('product/SKU history must expose the full confirmed-month range');
 if (!unified.includes('function fitHistory(t,count)')) fail('product/SKU tables must support readable horizontal history scrolling');
+if (unified.includes('SKU 내 업체 비중')) fail('SKU vendor-share column must remain removed');
+if (unified.includes('share:subtotal.now') || unified.includes('d.share') || unified.includes("th('share'")) fail('SKU vendor-share calculations must remain removed');
+if (!unified.includes("currentTh('now',mm")) fail('product/SKU current-month column must remain first and emphasized');
 
 if (!detailShell.includes("window.dispatchEvent(new Event('sf-detail-shell-ready'))")) fail('detail shell ready event is missing');
 if (!detailShell.includes("r.d?.slice(0,7)<=m")) fail('SKU product-group options are limited to current month instead of comparison history');
