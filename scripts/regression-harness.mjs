@@ -195,6 +195,9 @@ if (!upperHistory.includes("let dataCache=null,dataSig=''")) fail('stage-one ven
 if (upperHistory.includes('show=hist.slice(-5)')) fail('vendor history must not drop older confirmed months as new months arrive');
 if (!upperHistory.includes('show=hist;')) fail('vendor history must render the full confirmed-month range');
 if (!upperHistory.includes('--v39-min-width')) fail('vendor history must widen cleanly for horizontal scrolling');
+if (!upperHistory.includes('v39-current-head')) fail('current-month vendor column header must have a dedicated emphasis class');
+if (!upperHistory.includes('border-left:2px solid rgba(34,211,238,.72)') || !upperHistory.includes('border-right:2px solid rgba(34,211,238,.72)')) fail('current-month vendor column must retain its vertical outline');
+if (!upperHistory.includes('font-weight:950')) fail('current-month vendor values must remain strongly emphasized');
 if (!upperHistory.includes('scrollLeft=box.scrollWidth')) fail('vendor history must open on the recent-month side while keeping older months scrollable');
 
 for (const label of ['26.','확정월 평균','진행월 현재','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율']) {
