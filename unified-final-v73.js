@@ -66,7 +66,7 @@ function renderGroup(){
  const t=$('#groupTable');if(!t||!cur())return;
  const r=metrics('g',upperVendor),mm=String(Number(cur().slice(5,7)))+'월 누계';
  sortRows(r.rows,gSort,gDir);
- t.innerHTML=\`<thead><tr>\${th('name','제품군',gSort,gDir)}\${r.show.map(m=>th('m:'+m,m.slice(2).replace('-','.'),gSort,gDir)).join('')}\${th('avg','확정월 평균',gSort,gDir)}\${currentTh('now',mm,gSort,gDir)}\${th('prevDiff','직전월 대비 현재 증감',gSort,gDir)}\${th('avgDiff','확정월 평균 대비 현재 증감',gSort,gDir)}\${th('rate','확정월 평균 대비 현재 매출율',gSort,gDir)}</tr></thead><tbody>\${r.rows.map(x=>\`<tr data-v61-group="\${X(x.name)}" class="\${x.name===selectedProductGroup?'sf-selected-product':''}"><td><button type="button" class="sf-product-drill" aria-pressed="\${x.name===selectedProductGroup}" title="\${X(x.name)} MBO·SKU 상세 보기">\${X(x.name)}</button></td>\${r.show.map(m=>\`<td>\${W(x.months[m])}</td>\`).join('')}<td>\${W(x.avg)}</td><td class="v61-current">\${W(x.now)}</td><td class="\${x.prevDiff>=0?'v61-pos':'v61-neg'}">\${x.prevDiff>=0?'+':''}\${W(x.prevDiff)}</td><td class="\${x.avgDiff>=0?'v61-pos':'v61-neg'}">\${x.avgDiff>=0?'+':''}\${W(x.avgDiff)}</td><td class="\${x.rate>=1?'v61-pos':'v61-neg'}">\${RB(x.rate)}</td></tr>\`).join('')}</tbody>\`;
+ t.innerHTML=`<thead><tr>${th('name','제품군',gSort,gDir)}${r.show.map(m=>th('m:'+m,m.slice(2).replace('-','.'),gSort,gDir)).join('')}${th('avg','확정월 평균',gSort,gDir)}${currentTh('now',mm,gSort,gDir)}${th('prevDiff','직전월 대비 현재 증감',gSort,gDir)}${th('avgDiff','확정월 평균 대비 현재 증감',gSort,gDir)}${th('rate','확정월 평균 대비 현재 매출율',gSort,gDir)}</tr></thead><tbody>${r.rows.map(x=>`<tr data-v61-group="${X(x.name)}" class="${x.name===selectedProductGroup?'sf-selected-product':''}"><td><button type="button" class="sf-product-drill" aria-pressed="${x.name===selectedProductGroup}" title="${X(x.name)} MBO·SKU 상세 보기">${X(x.name)}</button></td>${r.show.map(m=>`<td>${W(x.months[m])}</td>`).join('')}<td>${W(x.avg)}</td><td class="v61-current">${W(x.now)}</td><td class="${x.prevDiff>=0?'v61-pos':'v61-neg'}">${x.prevDiff>=0?'+':''}${W(x.prevDiff)}</td><td class="${x.avgDiff>=0?'v61-pos':'v61-neg'}">${x.avgDiff>=0?'+':''}${W(x.avgDiff)}</td><td class="${x.rate>=1?'v61-pos':'v61-neg'}">${RB(x.rate)}</td></tr>`).join('')}</tbody>`;
  fitHistory(t,r.show.length);
  window.dispatchEvent(new CustomEvent('sf-product-table-rendered',{detail:{group:selectedProductGroup,vendor:upperVendor,month:cur()}}))
 }
@@ -162,42 +162,42 @@ function renderSkuMatrix(t,vendor,group){
  const rows=[],excel=[headings.map((h,i)=>singleVendor?(i===0?h:h.includes('매출율')?h+' (%)':h+' (억 원)'):(i===0||i===1?h:h.includes('매출율')?h+' (%)':h+' (억 원)'))];
  function cols(p){
   const signed=x=>x>0?'+':'';
-  return \`\${show.map(m=>\`<td>\${matrixW(p.months[m])}</td>\`).join('')}<td>\${matrixW(p.avg)}</td><td class="sku-v115-now v61-current">\${matrixW(p.now)}</td><td class="\${p.prevDiff>=0?'v61-pos':'v61-neg'}">\${signed(p.prevDiff)}\${matrixW(p.prevDiff)}</td><td class="\${p.avgDiff>=0?'v61-pos':'v61-neg'}">\${signed(p.avgDiff)}\${matrixW(p.avgDiff)}</td><td class="\${p.rate>=1?'v61-pos':'v61-neg'}">\${matrixPercent(p.rate)}</td>\`;
+  return `${show.map(m=>`<td>${matrixW(p.months[m])}</td>`).join('')}<td>${matrixW(p.avg)}</td><td class="sku-v115-now v61-current">${matrixW(p.now)}</td><td class="${p.prevDiff>=0?'v61-pos':'v61-neg'}">${signed(p.prevDiff)}${matrixW(p.prevDiff)}</td><td class="${p.avgDiff>=0?'v61-pos':'v61-neg'}">${signed(p.avgDiff)}${matrixW(p.avgDiff)}</td><td class="${p.rate>=1?'v61-pos':'v61-neg'}">${matrixPercent(p.rate)}</td>`;
  }
  function exportRow(sku,v,p){
   const measures=[...show.map(m=>matrixExcel(p.months[m])),matrixExcel(p.avg),matrixExcel(p.now),matrixExcel(p.prevDiff),matrixExcel(p.avgDiff),Number((p.rate*100).toFixed(2))];
   return singleVendor?[sku,...measures]:[sku,v,...measures];
  }
  const families=groupSkuPacks(ordered,show).sort((a,b)=>matrixOrder(a.subtotal,b.subtotal,skuKey,cDir));
- const fold=(id,label)=>\`<button type="button" class="sku-v115-fold" data-sku-v115-fold="\${id}" aria-expanded="false" aria-label="\${X(label)} 펼치기">▸</button>\`;
- const ancestry=ids=>ids.length?\` hidden data-sku-v115-parent="\${ids.at(-1)}" data-sku-v121-ancestors="\${ids.join(' ')}"\`:'';
+ const fold=(id,label)=>`<button type="button" class="sku-v115-fold" data-sku-v115-fold="${id}" aria-expanded="false" aria-label="${X(label)} 펼치기">▸</button>`;
+ const ancestry=ids=>ids.length?` hidden data-sku-v115-parent="${ids.at(-1)}" data-sku-v121-ancestors="${ids.join(' ')}"`:'';
  function emitSku(node,id,parents=[]){
   const sum=node.subtotal,n=node.details.length,vendorKey=cSort==='name'?'now':cSort;
   if(singleVendor){
-   rows.push(\`<tr\${ancestry(parents)} class="sku-v115-single-row"><td title="\${X(node.name)}">\${parents.length?'↳ ':''}\${X(node.name)}</td>\${cols(sum)}</tr>\`);
+   rows.push(`<tr${ancestry(parents)} class="sku-v115-single-row"><td title="${X(node.name)}">${parents.length?'↳ ':''}${X(node.name)}</td>${cols(sum)}</tr>`);
    excel.push(exportRow(node.name,vendor,sum));return;
   }
   node.details.sort((a,b)=>matrixOrder(a,b,vendorKey,cDir));
-  rows.push(\`<tr\${ancestry(parents)} class="sku-v115-subtotal"><td title="\${X(node.name)}">\${fold(id,node.name+' 업체 상세')}\${X(node.name)} <span style="font-size:10px;color:#9dbfd3">\${n}개 업체</span></td><td>SKU 소계</td>\${cols(sum)}</tr>\`);
+  rows.push(`<tr${ancestry(parents)} class="sku-v115-subtotal"><td title="${X(node.name)}">${fold(id,node.name+' 업체 상세')}${X(node.name)} <span style="font-size:10px;color:#9dbfd3">${n}개 업체</span></td><td>SKU 소계</td>${cols(sum)}</tr>`);
   excel.push(exportRow(node.name,'SKU 소계',sum));
   node.details.forEach(d=>{
-   rows.push(\`<tr\${ancestry([...parents,id])} class="sku-v115-detail"><td title="\${X(node.name)}">↳ \${X(node.name)}</td><td title="\${X(d.name)}">\${X(d.name)}</td>\${cols(d)}</tr>\`);
+   rows.push(`<tr${ancestry([...parents,id])} class="sku-v115-detail"><td title="${X(node.name)}">↳ ${X(node.name)}</td><td title="${X(d.name)}">${X(d.name)}</td>${cols(d)}</tr>`);
    excel.push(exportRow(node.name,d.name,d));
   });
  }
  families.forEach((family,i)=>{
   if(family.items.length===1){emitSku(family.items[0],'s'+i);return}
   const id='f'+i,label=family.name+' 합계';
-  rows.push(\`<tr class="sku-v115-subtotal sku-v121-strength"><td title="\${X(label)}">\${fold(id,label+' 포장단위')}\${X(label)}</td>\${singleVendor?'':'<td>포장단위 합계</td>'}\${cols(family.subtotal)}</tr>\`);
+  rows.push(`<tr class="sku-v115-subtotal sku-v121-strength"><td title="${X(label)}">${fold(id,label+' 포장단위')}${X(label)}</td>${singleVendor?'':'<td>포장단위 합계</td>'}${cols(family.subtotal)}</tr>`);
   excel.push(exportRow(label,singleVendor?vendor:'포장단위 합계',family.subtotal));
   family.items.forEach((node,j)=>emitSku(node,'s'+i+'_'+j,[id]));
  });
  if(ordered.length){
   if(!singleVendor||ordered.length>1){
-   rows.push(\`<tr class="sku-v115-grand"><td>제품군 합계</td>\${singleVendor?'':\`<td>\${X(vendor||'전체 업체')}</td>\`}\${cols(r.grand)}</tr>\`);
+   rows.push(`<tr class="sku-v115-grand"><td>제품군 합계</td>${singleVendor?'':`<td>${X(vendor||'전체 업체')}</td>`}${cols(r.grand)}</tr>`);
    excel.push(exportRow('제품군 합계',vendor||'전체 업체',r.grand));
   }
- }else rows.push(\`<tr><td colspan="\${headings.length}" style="text-align:center;padding:22px">선택 조건의 SKU·업체별 매출이 없습니다.</td></tr>\`);
+ }else rows.push(`<tr><td colspan="${headings.length}" style="text-align:center;padding:22px">선택 조건의 SKU·업체별 매출이 없습니다.</td></tr>`);
  t.innerHTML=head+'<tbody>'+rows.join('')+'</tbody>';
  t.style.minWidth=Math.max(singleVendor?1080:1320,(singleVendor?720:930)+show.length*96)+'px';
  const signature=[cur(),group,vendor].join('|'),scroller=t.closest('.table');
@@ -205,7 +205,7 @@ function renderSkuMatrix(t,vendor,group){
  t.dataset.skuV115Signature=signature;
  const summary=skuSummary(t);
  if(summary){summary.hidden=false;summary.innerHTML=skuScope(group,vendor)+
-  \`<span>SKU<strong>\${r.skuCount}종</strong></span>\${singleVendor?'':\`<span>업체<strong>\${r.vendorCount}개</strong></span>\`}<span>\${mm}<strong>\${matrixW(r.grand.now)}억</strong></span><span>\${prevName} 대비<strong>\${r.grand.prevDiff>0?'+':''}\${matrixW(r.grand.prevDiff)}억</strong></span><small>\${singleVendor?'같은 제품·함량의 포장단위를 합산합니다. 합계 왼쪽 ▸를 누르면 세부 SKU를 볼 수 있습니다.':'합계 왼쪽 ▸는 포장단위 SKU를, SKU 왼쪽 ▸는 업체별 매출을 펼칩니다.'} 과거 월 → 평균 → 현재 누계 → 비교지표 순으로 확인합니다. 단위: 억 원.</small>\`}
+  `<span>SKU<strong>${r.skuCount}종</strong></span>${singleVendor?'':`<span>업체<strong>${r.vendorCount}개</strong></span>`}<span>${mm}<strong>${matrixW(r.grand.now)}억</strong></span><span>${prevName} 대비<strong>${r.grand.prevDiff>0?'+':''}${matrixW(r.grand.prevDiff)}억</strong></span><small>${singleVendor?'같은 제품·함량의 포장단위를 합산합니다. 합계 왼쪽 ▸를 누르면 세부 SKU를 볼 수 있습니다.':'합계 왼쪽 ▸는 포장단위 SKU를, SKU 왼쪽 ▸는 업체별 매출을 펼칩니다.'} 과거 월 → 평균 → 현재 누계 → 비교지표 순으로 확인합니다. 단위: 억 원.</small>`}
  window.__SF_SKU_VENDOR_EXPORT={month:cur(),group,vendor,rows:excel,count:r.skuCount};
 }
 function skuSummary(table){
@@ -227,9 +227,9 @@ function renderSku(){
  const r=metrics('m',vendor,group),mm=String(Number(cur().slice(5,7)))+'월 누계';
  sortRows(r.rows,cSort,cDir);
  const summary=skuSummary(t);
- if(summary){summary.hidden=false;summary.innerHTML=skuScope('',vendor)+\`<span>전체 SKU<strong>\${r.rows.length}종</strong></span><span>표시 SKU<strong>\${Math.min(r.rows.length,180)}종</strong></span><small>\${r.rows.length>180?'현재 정렬 기준 상위 180종을 표시합니다. ':''}과거 월 → 평균 → 현재 누계 → 비교지표 순으로 확인합니다. 단위: 억 원.</small>\`}
- const cols=6+r.show.length,body=r.rows.length?r.rows.slice(0,180).map(x=>\`<tr><td>\${X(x.name)}</td>\${r.show.map(m=>\`<td>\${W(x.months[m])}</td>\`).join('')}<td>\${W(x.avg)}</td><td class="v61-current">\${W(x.now)}</td><td class="\${x.prevDiff>=0?'v61-pos':'v61-neg'}">\${x.prevDiff>=0?'+':''}\${W(x.prevDiff)}</td><td class="\${x.avgDiff>=0?'v61-pos':'v61-neg'}">\${x.avgDiff>=0?'+':''}\${W(x.avgDiff)}</td><td class="\${x.rate>=1?'v61-pos':'v61-neg'}">\${RB(x.rate)}</td></tr>\`).join(''):\`<tr><td colspan="\${cols}">선택 조건에 조회 가능한 SKU가 없습니다.</td></tr>\`;
- t.innerHTML=\`<thead><tr>\${th('name','SKU / 상세 제품명',cSort,cDir)}\${r.show.map(m=>th('m:'+m,m.slice(2).replace('-','.'),cSort,cDir)).join('')}\${th('avg','확정월 평균',cSort,cDir)}\${currentTh('now',mm,cSort,cDir)}\${th('prevDiff','직전월 대비 현재 증감',cSort,cDir)}\${th('avgDiff','확정월 평균 대비 현재 증감',cSort,cDir)}\${th('rate','확정월 평균 대비 현재 매출율',cSort,cDir)}</tr></thead><tbody>\${body}</tbody>\`;
+ if(summary){summary.hidden=false;summary.innerHTML=skuScope('',vendor)+`<span>전체 SKU<strong>${r.rows.length}종</strong></span><span>표시 SKU<strong>${Math.min(r.rows.length,180)}종</strong></span><small>${r.rows.length>180?'현재 정렬 기준 상위 180종을 표시합니다. ':''}과거 월 → 평균 → 현재 누계 → 비교지표 순으로 확인합니다. 단위: 억 원.</small>`}
+ const cols=6+r.show.length,body=r.rows.length?r.rows.slice(0,180).map(x=>`<tr><td>${X(x.name)}</td>${r.show.map(m=>`<td>${W(x.months[m])}</td>`).join('')}<td>${W(x.avg)}</td><td class="v61-current">${W(x.now)}</td><td class="${x.prevDiff>=0?'v61-pos':'v61-neg'}">${x.prevDiff>=0?'+':''}${W(x.prevDiff)}</td><td class="${x.avgDiff>=0?'v61-pos':'v61-neg'}">${x.avgDiff>=0?'+':''}${W(x.avgDiff)}</td><td class="${x.rate>=1?'v61-pos':'v61-neg'}">${RB(x.rate)}</td></tr>`).join(''):`<tr><td colspan="${cols}">선택 조건에 조회 가능한 SKU가 없습니다.</td></tr>`;
+ t.innerHTML=`<thead><tr>${th('name','SKU / 상세 제품명',cSort,cDir)}${r.show.map(m=>th('m:'+m,m.slice(2).replace('-','.'),cSort,cDir)).join('')}${th('avg','확정월 평균',cSort,cDir)}${currentTh('now',mm,cSort,cDir)}${th('prevDiff','직전월 대비 현재 증감',cSort,cDir)}${th('avgDiff','확정월 평균 대비 현재 증감',cSort,cDir)}${th('rate','확정월 평균 대비 현재 매출율',cSort,cDir)}</tr></thead><tbody>${body}</tbody>`;
  fitHistory(t,r.show.length)
 }
 function mboValue(){const g=$('#groupTarget')?.value||'',raw=String($('#groupMbo')?.value??'').trim().replace(',','.'),z=state(),o=(z.gmbo||z.groupMbo||{})[cur()]||{};const saved=o[g];let v=/^\d+(?:\.\d+)?$/.test(raw)?Number(raw):(saved!=null&&String(saved).trim()!==''?Number(saved):null);return{g,v:v!=null&&Number.isFinite(v)?v:null}}
@@ -256,10 +256,10 @@ function renderMbo(){
  let rows=KEY.map(k=>{const mo=Object.fromEntries(show.map(m=>[m,N(maps[m]?.[k])])),current=N(now[k]),prev=N(maps[last]?.[k]),isClosed=closed.has(k),add=isClosed?0:N(alloc[k]);return{name:k,months:mo,avg:N(avg[k]),now:current,prev,prevDiff:current-prev,avgDiff:current-N(avg[k]),rate:avg[k]?current/avg[k]:0,target:current+add,need:add,closed:isClosed}});
  sortRows(rows,mSort,mDir);
  const outsideMo=Object.fromEntries(show.map(m=>{const mp=maps[m]||{};return[m,Object.keys(mp).filter(k=>!KEY.includes(k)).reduce((s,k)=>s+N(mp[k]),0)]}));
- const current=$('#groupCurrent'),rate=$('#groupRate'),need=$('#groupNeed');if(current)current.textContent=W(curTotal)+'억';if(rate)rate.textContent=target?\`\${(curTotal/target*100).toFixed(1)}%\`:'-';if(need)need.textContent=W(totalNeed)+'억';
+ const current=$('#groupCurrent'),rate=$('#groupRate'),need=$('#groupNeed');if(current)current.textContent=W(curTotal)+'억';if(rate)rate.textContent=target?`${(curTotal/target*100).toFixed(1)}%`:'-';if(need)need.textContent=W(totalNeed)+'억';
  const mm=String(Number(cur().slice(5,7)))+'월 누계',histAvg=KEY.reduce((s,k)=>s+N(avg[k]),0)+outsideAvg,prevTotal=KEY.reduce((s,k)=>s+N(maps[last]?.[k]),0)+outsidePrev,prevTotalDiff=curTotal-prevTotal,avgTotalDiff=curTotal-histAvg,totalRate=histAvg?curTotal/histAvg:0;
- t.innerHTML=\`<thead><tr>\${th('name','업체',mSort,mDir)}\${show.map(m=>th('m:'+m,m.slice(2).replace('-','.'),mSort,mDir)).join('')}\${th('avg','확정월 평균',mSort,mDir)}\${currentTh('now',mm,mSort,mDir)}\${th('prevDiff','직전월 대비 현재 증감',mSort,mDir)}\${th('avgDiff','확정월 평균 대비 현재 증감',mSort,mDir)}\${th('rate','확정월 평균 대비 현재 매출율',mSort,mDir)}\${th('target','업체 목표',mSort,mDir)}\${th('need','추가 필요',mSort,mDir)}</tr></thead><tbody>\${rows.map(r=>\`<tr class="\${r.closed?'v73-closed':''}"><td>\${X(r.name)}\${r.closed?'<span class="v73-badge">마감 완료</span>':''}</td>\${show.map(m=>\`<td>\${W(r.months[m])}</td>\`).join('')}<td>\${W(r.avg)}</td><td class="v61-current">\${W(r.now)}</td><td class="\${r.prevDiff>=0?'v61-pos':'v61-neg'}">\${r.prevDiff>=0?'+':''}\${W(r.prevDiff)}</td><td class="\${r.avgDiff>=0?'v61-pos':'v61-neg'}">\${r.avgDiff>=0?'+':''}\${W(r.avgDiff)}</td><td class="\${r.rate>=1?'v61-pos':'v61-neg'}">\${RB(r.rate)}</td><td class="v61-target">\${W(r.target)}</td><td class="\${r.closed?'v61-pos':'v61-need'}">\${W(r.need)}</td></tr>\`).join('')}<tr class="subtotal"><td>권역 외 업체</td>\${show.map(m=>\`<td>\${W(outsideMo[m])}</td>\`).join('')}<td>\${W(outsideAvg)}</td><td class="v61-current">\${W(outsideNow)}</td><td class="\${outsideNow-outsidePrev>=0?'v61-pos':'v61-neg'}">\${outsideNow-outsidePrev>=0?'+':''}\${W(outsideNow-outsidePrev)}</td><td class="\${outsideNow-outsideAvg>=0?'v61-pos':'v61-neg'}">\${outsideNow-outsideAvg>=0?'+':''}\${W(outsideNow-outsideAvg)}</td><td class="\${outsideAvg&&outsideNow/outsideAvg>=1?'v61-pos':'v61-neg'}">\${RB(outsideAvg?outsideNow/outsideAvg:0)}</td><td>\${W(outsideNow)}</td><td class="v61-pos">0.0</td></tr><tr class="subtotal"><td>합계</td>\${show.map(m=>\`<td>\${W(KEY.reduce((s,k)=>s+N(maps[m]?.[k]),0)+N(outsideMo[m]))}</td>\`).join('')}<td>\${W(histAvg)}</td><td class="v61-current">\${W(curTotal)}</td><td class="\${prevTotalDiff>=0?'v61-pos':'v61-neg'}">\${prevTotalDiff>=0?'+':''}\${W(prevTotalDiff)}</td><td class="\${avgTotalDiff>=0?'v61-pos':'v61-neg'}">\${avgTotalDiff>=0?'+':''}\${W(avgTotalDiff)}</td><td class="\${totalRate>=1?'v61-pos':'v61-neg'}">\${RB(totalRate)}</td><td class="v61-target">\${W(target)}</td><td class="v61-need">\${W(totalNeed)}</td></tr></tbody>\`;
- const p=t.closest('section.panel')?.querySelector('.head p');if(p)p.textContent=\`\${g} · 과거 월 → 평균 → 현재 누계 → 비교지표 → 목표/추가 필요 순으로 확인합니다. 마감 완료 업체는 추가 필요 0, 남은 추가 필요액은 미마감 업체의 확정월 평균 비중으로 재배분합니다.\`;
+ t.innerHTML=`<thead><tr>${th('name','업체',mSort,mDir)}${show.map(m=>th('m:'+m,m.slice(2).replace('-','.'),mSort,mDir)).join('')}${th('avg','확정월 평균',mSort,mDir)}${currentTh('now',mm,mSort,mDir)}${th('prevDiff','직전월 대비 현재 증감',mSort,mDir)}${th('avgDiff','확정월 평균 대비 현재 증감',mSort,mDir)}${th('rate','확정월 평균 대비 현재 매출율',mSort,mDir)}${th('target','업체 목표',mSort,mDir)}${th('need','추가 필요',mSort,mDir)}</tr></thead><tbody>${rows.map(r=>`<tr class="${r.closed?'v73-closed':''}"><td>${X(r.name)}${r.closed?'<span class="v73-badge">마감 완료</span>':''}</td>${show.map(m=>`<td>${W(r.months[m])}</td>`).join('')}<td>${W(r.avg)}</td><td class="v61-current">${W(r.now)}</td><td class="${r.prevDiff>=0?'v61-pos':'v61-neg'}">${r.prevDiff>=0?'+':''}${W(r.prevDiff)}</td><td class="${r.avgDiff>=0?'v61-pos':'v61-neg'}">${r.avgDiff>=0?'+':''}${W(r.avgDiff)}</td><td class="${r.rate>=1?'v61-pos':'v61-neg'}">${RB(r.rate)}</td><td class="v61-target">${W(r.target)}</td><td class="${r.closed?'v61-pos':'v61-need'}">${W(r.need)}</td></tr>`).join('')}<tr class="subtotal"><td>권역 외 업체</td>${show.map(m=>`<td>${W(outsideMo[m])}</td>`).join('')}<td>${W(outsideAvg)}</td><td class="v61-current">${W(outsideNow)}</td><td class="${outsideNow-outsidePrev>=0?'v61-pos':'v61-neg'}">${outsideNow-outsidePrev>=0?'+':''}${W(outsideNow-outsidePrev)}</td><td class="${outsideNow-outsideAvg>=0?'v61-pos':'v61-neg'}">${outsideNow-outsideAvg>=0?'+':''}${W(outsideNow-outsideAvg)}</td><td class="${outsideAvg&&outsideNow/outsideAvg>=1?'v61-pos':'v61-neg'}">${RB(outsideAvg?outsideNow/outsideAvg:0)}</td><td>${W(outsideNow)}</td><td class="v61-pos">0.0</td></tr><tr class="subtotal"><td>합계</td>${show.map(m=>`<td>${W(KEY.reduce((s,k)=>s+N(maps[m]?.[k]),0)+N(outsideMo[m]))}</td>`).join('')}<td>${W(histAvg)}</td><td class="v61-current">${W(curTotal)}</td><td class="${prevTotalDiff>=0?'v61-pos':'v61-neg'}">${prevTotalDiff>=0?'+':''}${W(prevTotalDiff)}</td><td class="${avgTotalDiff>=0?'v61-pos':'v61-neg'}">${avgTotalDiff>=0?'+':''}${W(avgTotalDiff)}</td><td class="${totalRate>=1?'v61-pos':'v61-neg'}">${RB(totalRate)}</td><td class="v61-target">${W(target)}</td><td class="v61-need">${W(totalNeed)}</td></tr></tbody>`;
+ const p=t.closest('section.panel')?.querySelector('.head p');if(p)p.textContent=`${g} · 과거 월 → 평균 → 현재 누계 → 비교지표 → 목표/추가 필요 순으로 확인합니다. 마감 완료 업체는 추가 필요 0, 남은 추가 필요액은 미마감 업체의 확정월 평균 비중으로 재배분합니다.`;
  fitHistory(t,show.length)
 }
 function context(){const sec=$('#groupTable')?.closest('section.panel');if(!sec)return;sec.querySelectorAll('.v52-group-banner,.v54-context,.v58-context,.v61-context').forEach((x,i)=>{if(i||!x.classList.contains('v61-context'))x.remove()});let b=sec.querySelector('.v61-context');if(!b){b=document.createElement('div');b.className='v61-context';sec.querySelector('.head')?.insertAdjacentElement('afterend',b)}const name=upperVendor||sec.querySelector('.scope-badge strong')?.textContent?.trim()||'전체 업체';b.innerHTML=`<span>선택 업체</span><strong>${X(name)}</strong><span class="arr">→</span><span>제품군 월별 현황</span>`}
