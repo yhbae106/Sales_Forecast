@@ -212,7 +212,8 @@ if (!unified.includes('show=hist;return{ms,hist,show')) fail('product/SKU histor
 if (!unified.includes('function fitHistory(t,count)')) fail('product/SKU tables must support readable horizontal history scrolling');
 if (unified.includes('SKU 내 업체 비중')) fail('SKU vendor-share column must remain removed');
 if (unified.includes('share:subtotal.now') || unified.includes('d.share') || unified.includes("th('share'")) fail('SKU vendor-share calculations must remain removed');
-if (!unified.includes("currentTh('now',mm")) fail('product/SKU current-month column must remain first and emphasized');
+if (!unified.includes("currentTh('now',mm")) fail('product/SKU current-month column must remain emphasized');
+const groupRenderAt=unified.indexOf("function renderGroup(){"),groupMonthAt=unified.indexOf("r.show.map(m=>th('m:'",groupRenderAt),groupCurrentAt=unified.indexOf("currentTh('now',mm",groupRenderAt);if(groupMonthAt<0||groupCurrentAt<groupMonthAt)fail('product-group table must keep historical months before current month');
 
 if (!detailShell.includes("window.dispatchEvent(new Event('sf-detail-shell-ready'))")) fail('detail shell ready event is missing');
 if (!detailShell.includes("r.d?.slice(0,7)<=m")) fail('SKU product-group options are limited to current month instead of comparison history');
@@ -336,7 +337,7 @@ ok('visual readability and initial-render performance guards present');
 const noMboFinal = read('group-no-mbo-final-v87.js');
 if (noMboFinal.includes('show=hist.slice(-5)')) fail('no-MBO product history must not drop older confirmed months');
 if (!noMboFinal.includes('show=hist')) fail('no-MBO product history must keep the full confirmed-month range');
-if (!noMboFinal.includes('table.style.minWidth=Math.max(1180,820+past.length*88)')) fail('no-MBO product history must stay readable with horizontal scrolling');
+if (!noMboFinal.includes('table.style.minWidth=Math.max(1180,760+show.length*88)')) fail('no-MBO product history must stay readable with horizontal scrolling');
 ok('full historical month visibility and horizontal-scroll guards present');
 
 const uiStreamline = read('ui-streamline-v46.js');
