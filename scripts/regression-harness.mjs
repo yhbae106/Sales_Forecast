@@ -213,7 +213,7 @@ if (!unified.includes('function fitHistory(t,count)')) fail('product/SKU tables 
 
 if (!detailShell.includes("window.dispatchEvent(new Event('sf-detail-shell-ready'))")) fail('detail shell ready event is missing');
 if (!detailShell.includes("r.d?.slice(0,7)<=m")) fail('SKU product-group options are limited to current month instead of comparison history');
-for (const label of ['확정월 평균','진행월 현재','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율','업체 목표','추가 필요']) {
+for (const label of ['확정월 평균','월 누계','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율','업체 목표','추가 필요']) {
   if (!unified.includes(label)) fail('unified product-group MBO table missing column: ' + label);
 }
 ok('stage-one vendor detail and unified product/SKU drilldown guards present');
