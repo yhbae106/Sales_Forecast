@@ -336,7 +336,7 @@ ok('visual readability and initial-render performance guards present');
 const noMboFinal = read('group-no-mbo-final-v87.js');
 if (noMboFinal.includes('show=hist.slice(-5)')) fail('no-MBO product history must not drop older confirmed months');
 if (!noMboFinal.includes('show=hist')) fail('no-MBO product history must keep the full confirmed-month range');
-if (!noMboFinal.includes('table.style.minWidth=Math.max(1180,700+show.length*88)')) fail('no-MBO product history must stay readable with horizontal scrolling');
+if (!noMboFinal.includes('table.style.minWidth=Math.max(1180,820+past.length*88)')) fail('no-MBO product history must stay readable with horizontal scrolling');
 ok('full historical month visibility and horizontal-scroll guards present');
 
 const uiStreamline = read('ui-streamline-v46.js');
