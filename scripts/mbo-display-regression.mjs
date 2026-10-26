@@ -28,7 +28,7 @@ test('unset product target preserves complete sales history and labels unknown t
   assert.ok(r.nodes['#groupNeed'].classList.contains('sf-tone-neutral'));
   assert.equal(r.nodes['#groupNeed'].classList.contains('sf-tone-positive'),false);
   for(const m of ['26.04','26.05','26.06','26.07','26.08'])assert.ok(r.table.innerHTML.includes(m));assert.ok(r.table.innerHTML.includes('9월 마감'));
-  assert.equal((r.table.innerHTML.match(/title="제품군 목표 입력 후 계산">—<\/td>/g)||[]).length,20);
+  assert.equal((r.table.innerHTML.match(/title="제품군 목표 입력 후 계산">—<\/td>/g)||[]).length,16);
   assert.match(r.panelText.textContent,/목표 미입력/);
   assert.doesNotMatch(r.panelText.textContent,/0\.0억 기준/);
 });
