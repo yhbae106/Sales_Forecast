@@ -190,7 +190,7 @@ test('single-vendor multi-SKU total has the same column count as its header',()=
   const header=f.compare.innerHTML.match(/<thead><tr>(.*?)<\/tr><\/thead>/s)?.[1]||'';
   const grand=f.compare.innerHTML.match(/<tr class="sku-v115-grand">(.*?)<\/tr>/s)?.[1]||'';
   assert.equal((grand.match(/<td/g)||[]).length,(header.match(/<th\b/g)||[]).length);
-  assert.match(grand,/<td>제품군 합계<\/td><td class="sku-v115-now">2\.50<\/td>/);
+  assert.match(grand,/<td>제품군 합계<\/td><td class="sku-v115-now v61-current">2\.50<\/td>/);
 });
 
 const packs=[28,100,300].flatMap((pack,i)=>[
@@ -202,7 +202,7 @@ test('pack variants aggregate every month while preserving SKU/vendor exports',(
  const f=fixture({group:G2,rows:packs});
  const r=f.window.__SF_SKU_VENDOR_EXPORT.rows;
  const sum=r.find(x=>x[0]==='펙수클루정 10밀리그램 합계');
- assert.deepEqual(Array.from(sum.slice(1,6)),['포장단위 합계',1.8,100,6,-4.2]);
+ assert.deepEqual(Array.from(sum.slice(1,8)),['포장단위 합계',1.8,6,-4.2,6,-4.2,30]);
  assert.equal(r.filter(x=>x[0]==='펙수클루정 10밀리그램 합계').length,1);
  for(const pack of [28,100,300])assert.ok(r.some(x=>x[0]===`펙수클루정 10밀리그램 ${pack}T`&&x[1]===A));
  assert.match(f.compare.innerHTML,/<tr hidden[^>]*data-sku-v121-ancestors="f\d+"[^>]*class="sku-v115-subtotal"/);

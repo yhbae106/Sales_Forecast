@@ -210,10 +210,13 @@ if (!unified.includes("window.addEventListener('sf-detail-shell-ready'")) fail('
 if (unified.includes('show=hist.slice(-6)')) fail('product/SKU history must not drop older confirmed months');
 if (!unified.includes('show=hist;return{ms,hist,show')) fail('product/SKU history must expose the full confirmed-month range');
 if (!unified.includes('function fitHistory(t,count)')) fail('product/SKU tables must support readable horizontal history scrolling');
+if (unified.includes('SKU 내 업체 비중')) fail('SKU vendor-share column must remain removed');
+if (unified.includes('share:subtotal.now') || unified.includes('d.share') || unified.includes("th('share'")) fail('SKU vendor-share calculations must remain removed');
+if (!unified.includes("currentTh('now',mm")) fail('product/SKU current-month column must remain first and emphasized');
 
 if (!detailShell.includes("window.dispatchEvent(new Event('sf-detail-shell-ready'))")) fail('detail shell ready event is missing');
 if (!detailShell.includes("r.d?.slice(0,7)<=m")) fail('SKU product-group options are limited to current month instead of comparison history');
-for (const label of ['확정월 평균','진행월 현재','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율','업체 목표','추가 필요']) {
+for (const label of ['확정월 평균','월 누계','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율','업체 목표','추가 필요']) {
   if (!unified.includes(label)) fail('unified product-group MBO table missing column: ' + label);
 }
 ok('stage-one vendor detail and unified product/SKU drilldown guards present');
@@ -333,7 +336,7 @@ ok('visual readability and initial-render performance guards present');
 const noMboFinal = read('group-no-mbo-final-v87.js');
 if (noMboFinal.includes('show=hist.slice(-5)')) fail('no-MBO product history must not drop older confirmed months');
 if (!noMboFinal.includes('show=hist')) fail('no-MBO product history must keep the full confirmed-month range');
-if (!noMboFinal.includes('table.style.minWidth=Math.max(1180,700+show.length*88)')) fail('no-MBO product history must stay readable with horizontal scrolling');
+if (!noMboFinal.includes('table.style.minWidth=Math.max(1180,820+past.length*88)')) fail('no-MBO product history must stay readable with horizontal scrolling');
 ok('full historical month visibility and horizontal-scroll guards present');
 
 const uiStreamline = read('ui-streamline-v46.js');
