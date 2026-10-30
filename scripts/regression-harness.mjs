@@ -1,3 +1,5 @@
+// MY HUB is deployed with this repository; its checks must pass before Pages upload.
+await import('../my-hub/scripts/verify.mjs');
 import fs from 'node:fs';
 import { Script } from 'node:vm';
 

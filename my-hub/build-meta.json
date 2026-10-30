@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hashes": {
+    "src/Hub.tsx": "94243781f47bd16e8adcee64e937a487d5bf5312b2b67913030a737668e04b84",
+    "src/data.ts": "34fdcdcd0749c8ab6a2b7f03241eeffe3579e2e2934bf34d91919109d916b7b9",
+    "src/main.tsx": "c6c1733469ca905288bde07f86f509a0b7acfe24eb5766954b708b963519c6dc",
+    "src/storage.js": "602c92f80fed614b46d7f50dcbe4d07b4002a4014d9876bfb2a3dc6c8c5b7c14",
+    "src/storage.test.js": "7468efce1839d2ca518fa33cba6ca0069150b5a87a24688a573a838790c0fc07",
+    "scripts/build.mjs": "3fbf14f04b59a2bb9c4e0151fde5e31778825aee1f7a623c4b73e6594b6d7f93",
+    "scripts/verify.mjs": "1acaa2ce7339dea6adedd09b328d106720df498fbdb42363ff46bc900fef9c3b",
+    "catalog.json": "283484f62600600203100ac1a62a4db573f3d0b3de64924474ae38fd8141e90b",
+    "styles.css": "33096e90f244d4593982389276f8dc308e25acd9c0704f1cb98cdfcba0a66ecc",
+    "index.html": "a854ddf4d43d3484c2b7cd863189f7673b295434cf1a1cd57ea4791fcc02133a",
+    "package.json": "d604ebe48c042777a5e1bebe75b122847591e28da7b62972e3b3ca8a182ad6f9",
+    "hub.js": "b0a06514b1b4276d8c471d57857f4713e4b6ea565f017ba1d084577f8e6f2156"
+  }
+}
