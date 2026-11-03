@@ -190,7 +190,45 @@ await test('actual radar and top forecast collapse to booked sales when all eigh
   const chart=window.__radarTest.trendSvg(analysis);assert.ok(!chart.includes('-0.0억'),'a displayed achieved target must not show a negative zero shortfall');assert.match(chart,/최근 3개월 평균/);
   assert.ok(!window.__radarTest.biz('2026-10').includes('2026-10-09'));
 });
-await test('the existing operating range never reduces actuals or caps a finalized close',()=>{
-  const {window}=forecastRuntime();for(const allClosed of [false,true]){const result=window.__sfBoundaryAdjust({current:280e8,mbo:250e8,rawProgress:.8,elapsedBiz:10,totalBiz:20,allClosed});assert.equal(result.forecast,280e8);assert.equal(result.operatingMin,230e8);assert.equal(result.operatingMax,270e8);}
+await test('300eok planning cap never reduces booked sales or overrides a final close',()=>{
+  const {window}=forecastRuntime();
+  for(const allClosed of [false,true]){
+    const result=window.__sfBoundaryAdjust({current:320e8,mbo:250e8,rawProgress:.8,elapsedBiz:10,totalBiz:20,allClosed});
+    assert.equal(result.forecast,320e8);assert.equal(result.operatingMax,300e8);assert.equal('operatingMin' in result,false);
+    assert.equal(result.rolloverPotential,0);
+  }
+  const finalized=window.__sfBoundaryAdjust({current:290e8,mbo:250e8,rawProgress:.5,elapsedBiz:20,totalBiz:20,allClosed:false});
+  assert.equal(finalized.forecast,290e8);assert.equal(finalized.ruleApplied,'end-of-business-month');
+});
+await test('historical months below 230 and above 300 remain eligible without artificial minimum',()=>{
+  const {window}=forecastRuntime();
+  const result=window.__sfBoundaryAdjust({
+    current:65e8,mbo:0,recentAvg:200e8,rawProgress:.6,histProgress:[.45,.5,.55],
+    historySamples:[{close:180e8,remaining:45e8},{close:205e8,remaining:55e8},{close:315e8,remaining:70e8}],
+    elapsedBiz:15,totalBiz:20,allClosed:false
+  });
+  assert.equal(result.historicalSampleCount,3);
+  assert.ok(result.forecast>=65e8&&result.forecast<230e8,'no 230eok floor should be imposed');
+  assert.equal(result.rolloverPotential,0);assert.equal(result.operatingMax,300e8);
+});
+await test('unbooked projected sales above 300 become only a possible next-month rollover',()=>{
+  const {window}=forecastRuntime();
+  const result=window.__sfBoundaryAdjust({
+    current:280e8,mbo:290e8,recentAvg:300e8,rawProgress:.75,histProgress:[.78,.8,.82],
+    historySamples:[{close:290e8,remaining:90e8},{close:300e8,remaining:100e8},{close:315e8,remaining:110e8}],
+    elapsedBiz:15,totalBiz:20,allClosed:false
+  });
+  assert.equal(result.forecast,300e8);assert.ok(result.grossForecast>300e8);
+  assert.ok(result.rolloverPotential>0);assert.equal(result.ruleApplied,'possible-next-month-rollover');
+  assert.equal(result.observedCurrent,280e8);
+});
+await test('radar and top forecast use the same 300eok boundary model and history',()=>{
+  const {window}=forecastRuntime();window.__SF_SHARED_CLOSED={'2026-10':[]};
+  const radar=window.__radarTest.analyze();window.__forecastTest();
+  const top=window.__SF_FORECAST_V81;
+  assert.equal(radar.allClosed,false);assert.equal(top.allClosed,false);
+  assert.ok(Math.abs(radar.forecast-top.forecast)<1,'radar and top card forecasts must agree');
+  assert.equal(radar.boundary?.historicalSampleCount,top.boundary?.historicalSampleCount);
+  assert.equal(radar.boundary?.operatingMax,300e8);
 });
 console.log('RELIABILITY COMPLETE:',count,'behavioral cases');
