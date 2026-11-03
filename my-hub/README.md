@@ -22,3 +22,7 @@ GitHub Pages 주소: https://yhbae106.github.io/Sales_Forecast/my-hub/
 - 공통 목록 및 백업의 URL·실제 날짜·숫자·중복을 검증합니다.
 - 기존 저장소 회귀 하네스가 MY HUB 검사도 실행하므로 실패한 버전은 정상 배포 경로의 검증 단계를 통과하지 못합니다.
 - `build-meta.json`은 빌드 시 생성됩니다. 소스만 고친 뒤 번들 재생성을 빠뜨리면 자동 검증이 실패합니다.
+
+## TOPDOOR 업무 연결 (2026-11-03)
+
+`topdoor/work-hub`의 catalog.json과 shared-menus.json(커밋 79bb955a022b78132efad83316c3bcad9fa1c6e8)을 병합해 삭제된 EPM 메뉴를 제외하고 기존 SLA 평가와 중복되지 않는 10개 링크를 추가했습니다. 상대 주소는 원본 GitHub Pages의 절대 주소로 변환했습니다. 원본 페이지와 로그인은 해당 서비스에서 관리하며 자동 동기화나 자동 로그인은 포함하지 않습니다. 기존 브라우저의 메모·상태·즐겨찾기는 유지합니다.

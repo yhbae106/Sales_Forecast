@@ -20,3 +20,16 @@ test('impossible dates and nonfinite metadata are rejected',()=>{for(const due o
 test('duplicate IDs, addresses and ambiguous restore collisions rejected',()=>{const s=memory();assert.throws(()=>restoreBoards(s,base,{boards:[base[0],base[0]]}));assert.throws(()=>restoreBoards(s,base,{boards:[{...base[0],url:base[1].url}]}));assert.equal(s.writes,0);assert.throws(()=>changeBoard(s,base,'save',{...extra(),url:base[0].url}),/이미 등록/);});
 test('visit does not create edit conflicts and latest visit is preserved',()=>{const s=memory();changeBoard(s,base,'visit',base[0]);const visited=readBoards(s,base)[0].visited;changeBoard(s,base,'save',{...base[0],note:'저장'});assert.equal(readBoards(s,base)[0].visited,visited);});
 test('unknown backup version and reserved category rejected',()=>{const s=memory();assert.throws(()=>restoreBoards(s,base,{version:99,boards:base}));assert.throws(()=>validateCatalog([{...base[0],category:'전체'}]));assert.equal(s.writes,0);});
+
+test('expanded catalog preserves personal records and has unique absolute connections',()=>{
+ const s=memory(); const previous=base.filter(b=>!b.id.startsWith('topdoor-'));
+ changeBoard(s,previous,'save',{...previous[0],note:'내 업무 메모',favorite:0});
+ const merged=readBoards(s,base);
+ assert.equal(merged.find(b=>b.id===previous[0].id).note,'내 업무 메모');
+ assert.equal(merged.find(b=>b.id===previous[0].id).favorite,0);
+ assert.equal(merged.filter(b=>b.id.startsWith('topdoor-')).length,10);
+ assert.equal(new Set(merged.map(b=>b.url)).size,merged.length);
+ assert(merged.every(b=>new URL(b.url).protocol==='https:'));
+ assert(!merged.some(b=>b.url.includes('scmepm2026.vercel.app')));
+ assert(merged.some(b=>b.url==='https://topdoor.github.io/work-hub/vc-targets.html'));
+});
