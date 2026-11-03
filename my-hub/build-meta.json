@@ -1,17 +1,17 @@
 {
   "version": 1,
   "hashes": {
-    "src/Hub.tsx": "94243781f47bd16e8adcee64e937a487d5bf5312b2b67913030a737668e04b84",
-    "src/data.ts": "9727d78f30511d319fa36a5459ef2eecfd8b2314cf0f569b5fc54cf38b43ff82",
+    "src/Hub.tsx": "4110f0dfc2dbc61741736dd04581fed64e1d6347fbdf82dc1b9bf5b8a9ea759f",
+    "src/data.ts": "e09b3a1f76413c28931bfc1038f959f2e0306b9f7ee4404b033a84882cbfb3ab",
     "src/main.tsx": "c6c1733469ca905288bde07f86f509a0b7acfe24eb5766954b708b963519c6dc",
     "src/storage.js": "602c92f80fed614b46d7f50dcbe4d07b4002a4014d9876bfb2a3dc6c8c5b7c14",
-    "src/storage.test.js": "c0aff92d62c9b1867762be93d9630a6cc8c24247534c2a0cbb727e01c1425d6d",
+    "src/storage.test.js": "58a58906cf73ff0b1a20552db8a2165368850d818d1bbe6b762dc805cd580faf",
     "scripts/build.mjs": "3fbf14f04b59a2bb9c4e0151fde5e31778825aee1f7a623c4b73e6594b6d7f93",
     "scripts/verify.mjs": "1acaa2ce7339dea6adedd09b328d106720df498fbdb42363ff46bc900fef9c3b",
-    "catalog.json": "bb0491e3f8115423161e27141fc82f15b6b622fddadbd1bf91af2183908b1779",
-    "styles.css": "33096e90f244d4593982389276f8dc308e25acd9c0704f1cb98cdfcba0a66ecc",
-    "index.html": "22473c8e500e39274e53d2fc58e534a40302273bee9fe3fcffe172d911a6bd97",
+    "catalog.json": "97c53aad8c2c1f98041ab10c44ab094ad0773a4a86654f90de46f408def66169",
+    "styles.css": "cb24f8818328ea0b1772c52898d9856afda3b327cbd1a2ae29b55a1b9c5b9fe7",
+    "index.html": "48c251080a739fb9c68b2a783c9f2ec59836b8e56718f6b00216784f122f6fcb",
     "package.json": "d604ebe48c042777a5e1bebe75b122847591e28da7b62972e3b3ca8a182ad6f9",
-    "hub.js": "6dfe26f94eba0ecdae16127e78641b0af64f7d296e659a909a3a898f7cd876ff"
+    "hub.js": "268a2c81f8572536c16432a042a44a22000ae3219199a389466ed7cac73e9a73"
   }
 }
