@@ -16,8 +16,8 @@ function bounds(m,hist,sched){const s=sched[m]||[],a=schedIndex(m,s[0]),c=schedI
 function phase(m,date,bnd){const b=biz(m),i=Math.max(0,b.filter(x=>x<=date).length-1),[a,c]=bnd;return i<=a?[0,a?i/a:0]:i<=c?[1,(i-a)/Math.max(1,c-a)]:[2,(i-c)/Math.max(1,b.length-1-c)]}
 function eq(m,ph,bnd){const b=biz(m),[a,c]=bnd;let i=ph[0]===0?Math.round(a*ph[1]):ph[0]===1?Math.round(a+(c-a)*ph[1]):Math.round(c+(b.length-1-c)*ph[1]);return b[Math.max(0,Math.min(b.length-1,i))]}
 function progress(m,d,data){
- const eligible=data.months.filter(x=>x<m&&data.totals[x]>=230e8&&data.totals[x]<=270e8);
- const hist=(eligible.length?eligible:data.months.filter(x=>x<m&&data.totals[x]>0)).slice(-5);
+ // Use the five latest finished months regardless of size; avoid a 230eok selection floor.
+ const hist=data.months.filter(x=>x<m&&data.totals[x]>0).slice(-5);
  if(!hist.length)return 0;
  const ph=phase(m,d,bounds(m,hist,data.z.sched)),vals=[],samples=[];
  hist.forEach(h=>{
@@ -53,19 +53,17 @@ function patch(){
  const boundary=!!adj&&(adj.early||adj.late);
  const forecastSub=closed?'전체 관리업체 마감완료 · 실제 누계'
   :adj?.ruleApplied==='end-of-business-month'?'월 영업일 종료 · 반영된 실제 누계'
-  :adj?.ruleApplied==='actual-above-range'?'270억 초과 실적 발생 · 실제 누계 우선'
-  :adj?.rolloverPotential>=.5e8?'270억 상한 운영 · 약 '+W(adj.rolloverPotential)+'억 익월 이월 가능(추정)'
-  :adj?.shortfallRisk?'230억 미달 가능 · 잔여 영업일 매출 재점검'
-  :adj?.ruleApplied==='managed-minimum-recovery'?'230억 회복 가능 시나리오 · 미확정'
-  :adj?.carryInPossible?'전월 상한 근접 · 월초 이월 반영 가능(추정)'
-  :'발행일·영업일 패턴 + 230~270억 운영 기준';
+  :adj?.ruleApplied==='actual-above-ceiling'?'300억 초과 실제 매출 · 확정 누계 우선'
+  :adj?.rolloverPotential>=.05e8?'300억 운영 상한 · 초과 예상 '+W(adj.rolloverPotential)+'억 익월 이월 가능(추정)'
+  :adj?.carryInPossible?'전월 300억 근접 · 월초 이월 유입 가능(추정)'
+  :'';
  const paceSub=boundary?'월경계 보정 순도 · 이월/선반영 영향 완화':'확정월 동일 수금 진행위치 기준';
  if(goal>0){
   setCard(cm['기준일 목표 누계'],W(goal)+'억',paceSub,'info');
   setCard(cm['기준일 달성률'],P(paceCurrent/goal),boundary?'보정 누계 ÷ 기준 목표':'실제 누계 ÷ 기준 목표',paceCurrent>=goal?'good':'bad');
   setCard(cm['기준일 부족액'],W(gap)+'억',paceCurrent<goal?'추가 필요':'기준 이상',paceCurrent>=goal?'good':'bad');
  }
- setCard(cm['예상 마감'],W(fc)+'억',forecastSub,adj?.shortfallRisk?'bad':M>0&&fc>=M?'good':'warn');
+ setCard(cm['예상 마감'],W(fc)+'억',forecastSub,M>0&&fc>=M?'good':'warn');
  if(M>0)setCard(cm['예상 MBO 달성률'],P(fc/M),closed?'실제 누계 ÷ MBO':'운영 보정 예상마감 ÷ MBO',fc>=M?'good':'warn');
  window.__SF_FORECAST_V81={month:m,date:d,salesLast,progress:p,goalProgress,goal,forecast:fc,
   rawForecast:adj?.rawForecast??cur/p,effectiveCurrent:paceCurrent,allClosed:closed,
