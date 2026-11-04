@@ -401,6 +401,14 @@ if (!myHubAuthViewer.includes('MY HUB로 돌아가기')) fail('MY HUB authentica
 if (!myHubIndex.includes('same-tab-fix.js?v=20261104-auth4')) fail('MY HUB direct-navigation cache-bust asset is not deployed');
 if (!myHubIndex.includes('auth-viewer-fix.js?v=20261104-auth4')) fail('MY HUB authenticated-viewer asset is not deployed');
 ok('MY HUB navigation modes and authenticated return path harness present');
+const myHubOrder = read('my-hub/auth-viewer-fix.js');
+if (!myHubOrder.includes("ORDER_KEY='yhbae106.myhub.order.v1'")) fail('MY HUB card order persistence key missing');
+if (!myHubOrder.includes("className='reorder-toggle'")) fail('MY HUB placement-change control missing');
+if (!myHubOrder.includes("className='reorder-handle'")) fail('MY HUB drag handle missing');
+if (!myHubOrder.includes("document.addEventListener('dragstart'")) fail('MY HUB desktop drag support missing');
+if (!myHubOrder.includes("document.addEventListener('pointermove'")) fail('MY HUB mobile pointer drag support missing');
+if (!myHubOrder.includes("localStorage.setItem(ORDER_KEY")) fail('MY HUB reordered card persistence missing');
+ok('MY HUB drag reorder and persistence harness present');
 
 if (process.exitCode) process.exit(process.exitCode);
 console.log('HARNESS PASS');
