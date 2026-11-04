@@ -2,9 +2,7 @@
   const STORAGE_KEY='yhbae106.myhub.v2';
   const NAMES=[
     'VC 평가현황','VC평가현황',
-    'EPM 작성','EPM 작성하기',
-    '세일즈 포스','세일즈포스',
-    '협력 도매사 물동량 관리','협력도매사 물동량 관리'
+    'EPM 작성','EPM 작성하기'
   ];
   const normalize=v=>(v||'').replace(/\s+/g,'').toLowerCase();
   const SAME_TAB=new Set(NAMES.map(normalize));

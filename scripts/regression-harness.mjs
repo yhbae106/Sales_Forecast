@@ -384,16 +384,23 @@ if (managedVendors.every(v=>currentClosed.has(v))) {
 ok('decision input data is available');
 
 const myHubSameTab = read('my-hub/same-tab-fix.js');
+const myHubAuthViewer = read('my-hub/auth-viewer-fix.js');
 const myHubIndex = read('my-hub/index.html');
-for (const label of ['VC 평가현황','EPM 작성','세일즈 포스','협력 도매사 물동량 관리']) {
-  if (!myHubSameTab.includes(label)) fail('MY HUB current-tab policy missing: ' + label);
+for (const label of ['VC 평가현황','EPM 작성']) {
+  if (!myHubSameTab.includes(label)) fail('MY HUB direct-navigation policy missing: ' + label);
 }
-if (!myHubSameTab.includes("STORAGE_KEY='yhbae106.myhub.v2'")) fail('MY HUB current-tab policy must resolve browser-added boards');
-if (!myHubSameTab.includes("fetch('./catalog.json'")) fail('MY HUB current-tab policy must resolve catalog boards');
-if (!myHubSameTab.includes('window.location.assign(href)')) fail('MY HUB selected apps must navigate in current tab');
-if (!myHubSameTab.includes(".recent-row")) fail('MY HUB current-tab policy must cover recent/deadline rows');
-if (!myHubIndex.includes('same-tab-fix.js?v=20261104-harness3')) fail('MY HUB navigation cache-bust asset is not deployed');
-ok('MY HUB selected-app current-tab navigation harness present');
+for (const label of ['세일즈 포스','협력 도매사 물동량 관리']) {
+  if (myHubSameTab.includes(label)) fail('Auth-heavy MY HUB app must stay in viewer: ' + label);
+  if (!myHubAuthViewer.includes(label)) fail('MY HUB authenticated viewer policy missing: ' + label);
+}
+if (!myHubSameTab.includes("STORAGE_KEY='yhbae106.myhub.v2'")) fail('MY HUB direct-navigation policy must resolve browser-added boards');
+if (!myHubSameTab.includes("fetch('./catalog.json'")) fail('MY HUB direct-navigation policy must resolve catalog boards');
+if (!myHubSameTab.includes('window.location.assign(href)')) fail('MY HUB selected direct apps must navigate in current tab');
+if (!myHubAuthViewer.includes("frame.removeAttribute('sandbox')")) fail('MY HUB authenticated viewer must remove iframe sandbox');
+if (!myHubAuthViewer.includes('MY HUB로 돌아가기')) fail('MY HUB authenticated viewer must retain explicit return control');
+if (!myHubIndex.includes('same-tab-fix.js?v=20261104-auth4')) fail('MY HUB direct-navigation cache-bust asset is not deployed');
+if (!myHubIndex.includes('auth-viewer-fix.js?v=20261104-auth4')) fail('MY HUB authenticated-viewer asset is not deployed');
+ok('MY HUB navigation modes and authenticated return path harness present');
 
 if (process.exitCode) process.exit(process.exitCode);
 console.log('HARNESS PASS');
