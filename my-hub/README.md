@@ -26,3 +26,7 @@ GitHub Pages 주소: https://yhbae106.github.io/Sales_Forecast/my-hub/
 ## TOPDOOR 업무 연결 (2026-11-03)
 
 `topdoor/work-hub`의 catalog.json과 shared-menus.json(커밋 79bb955a022b78132efad83316c3bcad9fa1c6e8)을 병합해 삭제된 EPM 메뉴를 제외하고 기존 SLA 평가와 중복되지 않는 10개 링크를 추가했습니다. 상대 주소는 원본 GitHub Pages의 절대 주소로 변환했습니다. 원본 페이지와 로그인은 해당 서비스에서 관리하며 자동 동기화나 자동 로그인은 포함하지 않습니다. 기존 브라우저의 메모·상태·즐겨찾기는 유지합니다.
+
+## SCM-CPU 업무 연결 (2026-11-04)
+
+공개 저장소 todo-dashboard, SCM, VC-SLA를 조사하고 더샵플러스 SLA 현황 및 품절약 방문 추천 링크를 추가했습니다. 두 URL은 HTTP 200 응답과 페이지 제목을 확인했습니다. 기존 오늘의 할 일·직거래 배송·시장 품절약은 유지합니다. todo-dashboard/schedule.html과 기존 Vercel 팀 스케줄은 SHA-256이 일치하여 중복 제외했습니다. todo-dashboard가 연결하는 scm-vercel-deploy.vercel.app 역시 기존 SCM GitHub Pages 배송 화면과 SHA-256이 같아 중복 제외했습니다. 로컬 PC 전용 프로토콜은 포함하지 않았습니다. 원본의 로그인 이후 동작이나 데이터 정확성까지 검증한 것은 아닙니다.

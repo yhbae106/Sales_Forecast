@@ -208,5 +208,35 @@
     "visited": 0,
     "revision": 1,
     "created": 14
+  },
+  {
+    "id": "scm-theshop-sla",
+    "name": "더샵플러스 SLA 현황",
+    "url": "https://scm-cpu.github.io/VC-SLA/",
+    "category": "VC 평가",
+    "description": "더샵플러스 SLA 현황과 관련 지표를 확인하세요.",
+    "color": "blue",
+    "favorite": 0,
+    "status": "대기",
+    "due": "",
+    "note": "",
+    "visited": 0,
+    "revision": 1,
+    "created": 15
+  },
+  {
+    "id": "scm-shortage-visits",
+    "name": "품절약 방문 추천",
+    "url": "https://scm-cpu.github.io/VC-SLA/visit/",
+    "category": "품절 관리",
+    "description": "품절약 관련 방문 추천 대상을 확인하세요.",
+    "color": "orange",
+    "favorite": 0,
+    "status": "대기",
+    "due": "",
+    "note": "",
+    "visited": 0,
+    "revision": 1,
+    "created": 16
   }
 ]
