@@ -168,8 +168,8 @@ function renderSkuMatrix(t,vendor,group){
  const ordered=r.skus.sort((a,b)=>matrixOrder(a.subtotal,b.subtotal,skuKey,cDir));
  const rows=[],excel=[headings.map((h,i)=>singleVendor?(i===0?h:h.includes('매출률')?h+' (%)':h+' (억 원)'):(i===0||i===1?h:h.includes('매출률')?h+' (%)':h+' (억 원)'))];
  function cols(p){
-  const txt=v=>v==null?'—':matrixW(v),diff=v=>v==null?'—':eok1(v)===0?'0.00':(v>0?'+':'')+matrixW(v);
-  return `${show.map(m=>`<td>${matrixW(p.months[m])}</td>`).join('')}<td>${matrixW(p.avg)}</td><td class="sku-v115-now v61-current">${matrixW(p.now)}</td><td class="v61-benchmark">${txt(p.expected)}</td><td class="${dTone(p.prevDiff)}">${diff(p.prevDiff)}</td><td class="${dTone(p.avgDiff)}">${diff(p.avgDiff)}</td><td class="${rTone(p.rate)}">${matrixPercent(p.rate)}</td>`;
+  const txt=v=>v==null?'—':matrixW(v),diff=v=>v==null?'—':Math.round(Math.abs(v)/1e6)===0?'0.00':(v>0?'+':'')+matrixW(v),tone2=v=>v==null||Math.round(Math.abs(v)/1e6)===0?'v61-neutral':v>0?'v61-pos':'v61-neg';
+  return `${show.map(m=>`<td>${matrixW(p.months[m])}</td>`).join('')}<td>${matrixW(p.avg)}</td><td class="sku-v115-now v61-current">${matrixW(p.now)}</td><td class="v61-benchmark">${txt(p.expected)}</td><td class="${tone2(p.prevDiff)}">${diff(p.prevDiff)}</td><td class="${tone2(p.avgDiff)}">${diff(p.avgDiff)}</td><td class="${rTone(p.rate)}">${matrixPercent(p.rate)}</td>`;
  }
  function exportRow(sku,v,p){
   const asExcel=v=>v==null?null:matrixExcel(v);
