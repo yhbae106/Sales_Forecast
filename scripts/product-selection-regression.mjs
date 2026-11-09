@@ -207,6 +207,9 @@ test('pack variants aggregate every month while preserving SKU/vendor exports',(
  assert.equal(r.filter(x=>x[0]==='펙수클루정 10밀리그램 합계').length,1);
  for(const pack of [28,100,300])assert.ok(r.some(x=>x[0]===`펙수클루정 10밀리그램 ${pack}T`&&x[1]===A));
  assert.match(f.compare.innerHTML,/<tr hidden[^>]*data-sku-v121-ancestors="f\d+"[^>]*class="sku-v115-subtotal"/);
+ assert.match(f.compare.innerHTML,/기준일 기대 누계/);
+ assert.match(f.compare.innerHTML,/기준일 대비 매출률/);
+ assert.ok(f.window.__SF_SKU_VENDOR_EXPORT.rows[0].some(x=>String(x).includes('매출률 (%)')),'Excel percent units are required');
  assert.equal(r.find(x=>x[0]==='제품군 합계')[4],5.8);
 });
 test('single vendor retains pack expansion without duplicate vendor subtotals',()=>{
