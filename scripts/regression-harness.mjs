@@ -200,6 +200,9 @@ if (!upperHistory.includes('--v39-min-width')) fail('vendor history must widen c
 if (!upperHistory.includes('v39-current-head')) fail('current-month vendor column header must have a dedicated emphasis class');
 if (!upperHistory.includes('border-left:2px solid rgba(34,211,238,.72)') || !upperHistory.includes('border-right:2px solid rgba(34,211,238,.72)')) fail('current-month vendor column must retain its vertical outline');
 if (!upperHistory.includes('font-weight:950')) fail('current-month vendor values must remain strongly emphasized');
+if(!upperHistory.includes('#vendorTable.v39-history tr.subtotal td.v39-rate-good')||!upperHistory.includes('#vendorTable.v39-history tr.subtotal td.v39-rate-bad'))fail('subtotal vendor pace colors must override generic table styles');
+if(!unified.includes('#groupTargetTable td.v61-pos')||!unified.includes('#groupTargetTable td.v61-neg'))fail('product MBO summary colors must override generic table styles');
+
 if (!upperHistory.includes('scrollLeft=box.scrollWidth')) fail('vendor history must open on the recent-month side while keeping older months scrollable');
 for(const field of ['기준일 기대 누계','전월 동일시점 대비 증감','확정월 동일시점 대비 증감','기준일 대비 매출률']){
  if(!upperHistory.includes(field))fail('vendor table missing same-stage comparator: '+field);
