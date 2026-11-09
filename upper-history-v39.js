@@ -41,9 +41,10 @@ function metrics(v,cur,hist,show,pace=paceContext(cur,hist)){
  return{months:Object.fromEntries(show.map(m=>[m,amount(v,m)])),avg,now,expected,previous,prevDiff,avgDiff,rate};
 }
 function RB(v){if(v==null)return '<span class="sf-ratebar"><b>—</b></span>';const pct=Math.max(0,Math.min(140,N(v)*100))/140*100;return`<span class="sf-ratebar" style="--rate:${pct.toFixed(1)}%"><i></i><b>${P(v)}</b></span>`}
-function signed(v){return v==null?'—':(v>0?'+':'')+W(v)}
-function tone(v){return v==null?'v39-rate-neutral':v>=1?'v39-rate-good':'v39-rate-bad'}
-function deltaTone(v){return v==null?'v39-rate-neutral':v>=0?'v39-pos':'v39-neg'}
+const displayedEok=v=>Math.sign(v)*Math.round(Math.abs(v)/1e7)/10;
+function signed(v){if(v==null)return '—';const q=displayedEok(v);return q===0?'0.0':(q>0?'+':'')+W(v)}
+function tone(v){return v==null?'v39-rate-neutral':Number((v*100).toFixed(1))>=100?'v39-rate-good':'v39-rate-bad'}
+function deltaTone(v){if(v==null)return 'v39-rate-neutral';const q=displayedEok(v);return q===0?'v39-rate-neutral':q>0?'v39-pos':'v39-neg'}
 function comparisonCells(x){
  const title=x.expected==null?'비교 가능한 기준일 정보가 없습니다.':x.expected>0?'진행월 누계 ÷ 과거 확정월 동일 수금 진행위치 평균 누계':'동일 진행위치 과거 매출이 없어 달성률을 판정하지 않습니다.';
  return`<td class="v39-benchmark">${x.expected==null?'—':W(x.expected)}</td><td class="${deltaTone(x.prevDiff)} v39-comparison">${signed(x.prevDiff)}</td><td class="${deltaTone(x.avgDiff)} v39-comparison">${signed(x.avgDiff)}</td><td class="${tone(x.rate)}" title="${title}">${RB(x.rate)}</td>`;
