@@ -63,7 +63,7 @@ function renderVendor(){
  const p=t.closest('section.panel')?.querySelector('.head p'),range=show.length?(show[0].slice(2).replace('-','.')+'~'+show.at(-1).slice(2).replace('-','.')):'-';
  if(p)p.innerHTML=`업체 클릭 → 2단계 제품군 · <span class="v39-month-note">기준일 ${dateLabel}(업로드 기준) · 확정월 ${range} · 동일 수금 진행위치 누계 평균 대비 100% 이상 초록 / 미만 빨강 · 확정월 평균은 월 전체 실적</span>${show.length>5?'<span class="v39-scroll-note">← 좌우 스크롤로 이전월 확인 →</span>':''}`;
  const box=t.closest('.table');if(box&&lastViewMonth!==cur){lastViewMonth=cur;requestAnimationFrame(()=>{box.scrollLeft=box.scrollWidth})}
- window.dispatchEvent(new CustomEvent('sf-vendor-table-rendered',{detail:{month:cur,asOf:pace.asOf}}))
+ window.__SF_VENDOR_PACE_META={asOf:pace.asOf,range};window.dispatchEvent(new CustomEvent('sf-vendor-table-rendered',{detail:{month:cur,asOf:pace.asOf}}))
 }
 window.__sfVendorPaceContext=paceContext;
 window.__sfVendorPaceMetrics=metrics;
