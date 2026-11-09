@@ -13,7 +13,7 @@ const window={SEED_DATA:{dailyRecords:[...historic,...current],krHolidays2026:{'
  SFDataReliability:{sourceAsOfDate:()=> '2026-11-09'},__sfSharedMeta:{sourceFiles:[{month:'2026-11',uploadDate:'2026-11-09'}]},
  addEventListener(){},dispatchEvent(){}};
 const localStorage={getItem:()=>null};
-const code=fs.readFileSync(new URL('../upper-history-v39.js',import.meta.url),'utf8').replace('setTimeout(render,650);','window.__testRenderVendor=renderVendor;');
+const code=fs.readFileSync(new URL('../upper-history-v39.js',import.meta.url),'utf8').replace('setTimeout(render,650);','window.__testRenderVendor=renderVendor;window.__testTone=tone;window.__testSigned=signed;window.__testDeltaTone=deltaTone;');
 vm.runInNewContext(code,{document,window,localStorage,setTimeout(){},requestAnimationFrame:fn=>fn(),Date,Math,Number,String,JSON,Set,Map,Object,Array,Intl,CustomEvent:class{constructor(type,options){this.type=type;this.detail=options?.detail}}});
 const hist=['2026-10'],ctx=window.__sfVendorPaceContext('2026-11',hist),metrics=window.__sfVendorPaceMetrics;
 assert.equal(ctx.asOf,'2026-11-09','must use upload date even when latest sale is earlier');
@@ -38,6 +38,10 @@ assert.match(table.innerHTML,/확정월 동일시점 대비 증감/);
 assert.match(table.innerHTML,/v39-rate-good/);
 assert.match(table.innerHTML,/v39-rate-neutral/);
 assert.match(paragraph.innerHTML,/2026\.11\.09/);
+assert.equal(window.__testTone(.9996),'v39-rate-good','100.0% must be green');
+assert.equal(window.__testTone(.9994),'v39-rate-bad','99.9% must be red');
+assert.equal(window.__testSigned(-0.01e8),'0.0','no negative zero');
+assert.equal(window.__testDeltaTone(-0.01e8),'v39-rate-neutral','rounded-zero differences must stay neutral');
 const total=metrics('','2026-11',hist,hist,ctx),subtotal=metrics('백제약품 전체 합계','2026-11',hist,hist,ctx);
 assert.equal(total.now,62e8);assert.equal(subtotal.now,60e8);
 assert.equal(total.expected,subtotal.expected,'outside vendor with no historic sales must not distort historical expectation');
