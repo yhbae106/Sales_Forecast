@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],N=v=>Number(v||0),W=v=>(N(v)/1e8).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1}),P=v=>Number.isFinite(v)?`(${(v*100).toFixed(1)}%)`:'-',X=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),RB=v=>{const pct=Math.max(0,Math.min(140,N(v)*100))/140*100;return`<span class="sf-ratebar" style="--rate:${pct.toFixed(1)}%"><i></i><b>${P(v)}</b></span>`};
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],N=v=>Number(v||0),W=v=>(N(v)/1e8).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1}),P=v=>Number.isFinite(v)?`(${(v*100).toFixed(1)}%)`:'-',X=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),RB=v=>{if(v==null)return '<span class="sf-ratebar"><b>—</b></span>';const pct=Math.max(0,Math.min(140,N(v)*100))/140*100;return`<span class="sf-ratebar" style="--rate:${pct.toFixed(1)}%"><i></i><b>${P(v)}</b></span>`};
 const STORE='sales_forecast_v16',CLOSE_KEY='sales_forecast_vendor_closed_v66',KEY=['백제약품영등포지점','백제약품(주)영남본부','대전백제약품','백제약품(주)원주지점','(주)인천약품','(주)복산나이스','유진약품(주)','아이팜코리아(주)'];let upperVendor='',gSort='avg',gDir='desc',cSort='avg',cDir='desc',mSort='avg',mDir='desc',busy=false,inputTm,allCache=null,allSig='';
 window.__SF_UNIFIED_FINAL_ACTIVE=true;upperVendor=window.__SF_UPPER_VENDOR||'';
 // The MBO and SKU controls describe the same product scope. Keep selection separate
@@ -168,14 +168,15 @@ function renderSkuMatrix(t,vendor,group){
  const ordered=r.skus.sort((a,b)=>matrixOrder(a.subtotal,b.subtotal,skuKey,cDir));
  const rows=[],excel=[headings.map((h,i)=>singleVendor?(i===0?h:h.includes('매출률')?h+' (%)':h+' (억 원)'):(i===0||i===1?h:h.includes('매출률')?h+' (%)':h+' (억 원)'))];
  function cols(p){
-  const signed=x=>x>0?'+':'';
-  return `${show.map(m=>`<td>${matrixW(p.months[m])}</td>`).join('')}<td>${matrixW(p.avg)}</td><td class="sku-v115-now v61-current">${matrixW(p.now)}</td><td class="${p.prevDiff>=0?'v61-pos':'v61-neg'}">${signed(p.prevDiff)}${matrixW(p.prevDiff)}</td><td class="${p.avgDiff>=0?'v61-pos':'v61-neg'}">${signed(p.avgDiff)}${matrixW(p.avgDiff)}</td><td class="${p.rate>=1?'v61-pos':'v61-neg'}">${matrixPercent(p.rate)}</td>`;
+  const txt=v=>v==null?'—':matrixW(v),diff=v=>v==null?'—':(v>0?'+':'')+matrixW(v);
+  return `${show.map(m=>`<td>${matrixW(p.months[m])}</td>`).join('')}<td>${matrixW(p.avg)}</td><td class="sku-v115-now v61-current">${matrixW(p.now)}</td><td class="v61-benchmark">${txt(p.expected)}</td><td class="${dTone(p.prevDiff)}">${diff(p.prevDiff)}</td><td class="${dTone(p.avgDiff)}">${diff(p.avgDiff)}</td><td class="${rTone(p.rate)}">${matrixPercent(p.rate)}</td>`;
  }
  function exportRow(sku,v,p){
-  const measures=[...show.map(m=>matrixExcel(p.months[m])),matrixExcel(p.avg),matrixExcel(p.now),matrixExcel(p.prevDiff),matrixExcel(p.avgDiff),Number((p.rate*100).toFixed(2))];
+  const asExcel=v=>v==null?null:matrixExcel(v);
+  const measures=[...show.map(m=>matrixExcel(p.months[m])),matrixExcel(p.avg),matrixExcel(p.now),asExcel(p.expected),asExcel(p.prevDiff),asExcel(p.avgDiff),p.rate==null?null:Number((p.rate*100).toFixed(2))];
   return singleVendor?[sku,...measures]:[sku,v,...measures];
  }
- const families=groupSkuPacks(ordered,show).sort((a,b)=>matrixOrder(a.subtotal,b.subtotal,skuKey,cDir));
+const families=groupSkuPacks(ordered,show).sort((a,b)=>matrixOrder(a.subtotal,b.subtotal,skuKey,cDir));
  const fold=(id,label)=>`<button type="button" class="sku-v115-fold" data-sku-v115-fold="${id}" aria-expanded="false" aria-label="${X(label)} 펼치기">▸</button>`;
  const ancestry=ids=>ids.length?` hidden data-sku-v115-parent="${ids.at(-1)}" data-sku-v121-ancestors="${ids.join(' ')}"`:'';
  function emitSku(node,id,parents=[]){
@@ -206,13 +207,13 @@ function renderSkuMatrix(t,vendor,group){
   }
  }else rows.push(`<tr><td colspan="${headings.length}" style="text-align:center;padding:22px">선택 조건의 SKU·업체별 매출이 없습니다.</td></tr>`);
  t.innerHTML=head+'<tbody>'+rows.join('')+'</tbody>';
- t.style.minWidth=Math.max(singleVendor?1080:1320,(singleVendor?720:930)+show.length*96)+'px';
+ t.style.minWidth=Math.max(singleVendor?1180:1400,(singleVendor?810:1040)+show.length*96)+'px';
  const signature=[cur(),group,vendor].join('|'),scroller=t.closest('.table');
  if(scroller&&t.dataset.skuV115Signature!==signature)scroller.scrollLeft=scroller.scrollWidth;
  t.dataset.skuV115Signature=signature;
  const summary=skuSummary(t);
  if(summary){summary.hidden=false;summary.innerHTML=skuScope(group,vendor)+
-  `<span>SKU<strong>${r.skuCount}종</strong></span>${singleVendor?'':`<span>업체<strong>${r.vendorCount}개</strong></span>`}<span>${mm}<strong>${matrixW(r.grand.now)}억</strong></span><span>${prevName} 대비<strong>${r.grand.prevDiff>0?'+':''}${matrixW(r.grand.prevDiff)}억</strong></span><small>${singleVendor?'같은 제품·함량의 포장단위를 합산합니다. 합계 왼쪽 ▸를 누르면 세부 SKU를 볼 수 있습니다.':'합계 왼쪽 ▸는 포장단위 SKU를, SKU 왼쪽 ▸는 업체별 매출을 펼칩니다.'} 과거 월 → 평균 → 현재 누계 → 비교지표 순으로 확인합니다. 단위: 억 원.</small>`}
+  `<span>SKU<strong>${r.skuCount}종</strong></span>${singleVendor?'':`<span>업체<strong>${r.vendorCount}개</strong></span>`}<span>${mm}<strong>${matrixW(r.grand.now)}억</strong></span><span>${prevName} 동일시점 대비<strong>${r.grand.prevDiff==null?'—':(r.grand.prevDiff>0?'+':'')+matrixW(r.grand.prevDiff)+'억'}</strong></span><small>${singleVendor?'같은 제품·함량의 포장단위를 합산합니다. 합계 왼쪽 ▸를 누르면 세부 SKU를 볼 수 있습니다.':'합계 왼쪽 ▸는 포장단위 SKU를, SKU 왼쪽 ▸는 업체별 매출을 펼칩니다.'} 과거 월 전체 실적 → 현재 누계 → 동일 수금 진행위치 비교 순입니다. 단위: 억 원.</small>`}
  window.__SF_SKU_VENDOR_EXPORT={month:cur(),group,vendor,rows:excel,count:r.skuCount};
 }
 function skuSummary(table){
@@ -234,7 +235,7 @@ function renderSku(){
  const r=metrics('m',vendor,group),mm=String(Number(cur().slice(5,7)))+'월 누계';
  sortRows(r.rows,cSort,cDir);
  const summary=skuSummary(t);
- if(summary){summary.hidden=false;summary.innerHTML=skuScope('',vendor)+`<span>전체 SKU<strong>${r.rows.length}종</strong></span><span>표시 SKU<strong>${Math.min(r.rows.length,180)}종</strong></span><small>${r.rows.length>180?'현재 정렬 기준 상위 180종을 표시합니다. ':''}과거 월 → 평균 → 현재 누계 → 비교지표 순으로 확인합니다. 단위: 억 원.</small>`}
+ if(summary){summary.hidden=false;summary.innerHTML=skuScope('',vendor)+`<span>전체 SKU<strong>${r.rows.length}종</strong></span><span>표시 SKU<strong>${Math.min(r.rows.length,180)}종</strong></span><small>${r.rows.length>180?'현재 정렬 기준 상위 180종을 표시합니다. ':''}과거 월 전체 실적 → 현재 누계 → 동일 수금 진행위치 비교 순입니다. 단위: 억 원.</small>`}
  const cols=7+r.show.length,body=r.rows.length?r.rows.slice(0,180).map(x=>`<tr><td>${X(x.name)}</td>${r.show.map(m=>`<td>${W(x.months[m])}</td>`).join('')}<td>${W(x.avg)}</td><td class="v61-current">${W(x.now)}</td><td class="v61-benchmark">${nFmt(x.expected)}</td><td class="${dTone(x.prevDiff)}">${dFmt(x.prevDiff)}</td><td class="${dTone(x.avgDiff)}">${dFmt(x.avgDiff)}</td><td class="${rTone(x.rate)}">${RB(x.rate)}</td></tr>`).join(''):`<tr><td colspan="${cols}">선택 조건에 조회 가능한 SKU가 없습니다.</td></tr>`;
  t.innerHTML=`<thead><tr>${th('name','SKU / 상세 제품명',cSort,cDir)}${r.show.map(m=>th('m:'+m,m.slice(2).replace('-','.'),cSort,cDir)).join('')}${th('avg','확정월 평균',cSort,cDir)}${currentTh('now',mm,cSort,cDir)}${th('expected','기준일 기대 누계',cSort,cDir)}${th('prevDiff','전월 동일시점 대비 증감',cSort,cDir)}${th('avgDiff','확정월 동일시점 대비 증감',cSort,cDir)}${th('rate','기준일 대비 매출률',cSort,cDir)}</tr></thead><tbody>${body}</tbody>`;
  fitHistory(t,r.show.length)
