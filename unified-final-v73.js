@@ -54,7 +54,7 @@ function th(k,l,sk,sd){return`<th data-v61="${X(k)}" class="${sk===k?'v61-active
 function currentTh(k,l,sk,sd){return`<th data-v61="${X(k)}" class="v61-current-head ${sk===k?'v61-active':''}">${l} ${sk===k?(sd==='asc'?'▲':'▼'):'↕'}</th>`}
 function sortRows(rows,k,d){const val=(r,key)=>key==='name'?r.name:key.startsWith('m:')?N(r.months[key.slice(2)]):N(r[key]);rows.sort((a,b)=>k==='name'?(d==='asc'?1:-1)*String(a.name).localeCompare(String(b.name),'ko'):(d==='asc'?1:-1)*(val(a,k)-val(b,k)));return rows}
 function paceFor(hist){const fn=window.__sfVendorPaceContext;if(typeof fn!=='function')return null;const p=fn(cur(),hist);return p?.available&&p.month===cur()?p:null}
-const dFmt=v=>v==null?'—':(v>0?'+':'')+W(v),dTone=v=>v==null?'v61-neutral':v>=0?'v61-pos':'v61-neg',rTone=v=>v==null?'v61-neutral':v>=1?'v61-pos':'v61-neg',nFmt=v=>v==null?'—':W(v);
+const eok1=v=>Math.sign(v)*Math.round(Math.abs(v)/1e7)/10,dFmt=v=>v==null?'—':eok1(v)===0?'0.0':(eok1(v)>0?'+':'')+W(v),dTone=v=>v==null||eok1(v)===0?'v61-neutral':eok1(v)>0?'v61-pos':'v61-neg',rTone=v=>v==null?'v61-neutral':Number((v*100).toFixed(1))>=100?'v61-pos':'v61-neg',nFmt=v=>v==null?'—':W(v);
 function metrics(kind,vendor='',group=''){
  const {ms,hist,show,last}=history(),maps={},stage={},pace=paceFor(hist),source=all();
  ms.forEach(m=>{let rs=scope(source.filter(r=>r.d?.slice(0,7)===m),vendor);if(group)rs=rs.filter(r=>r.g===group);maps[m]=map(rs,kind);if(m<cur()&&pace)stage[m]=map(rs.filter(r=>r.d<=pace.cuts[m]),kind)});
@@ -168,7 +168,7 @@ function renderSkuMatrix(t,vendor,group){
  const ordered=r.skus.sort((a,b)=>matrixOrder(a.subtotal,b.subtotal,skuKey,cDir));
  const rows=[],excel=[headings.map((h,i)=>singleVendor?(i===0?h:h.includes('매출률')?h+' (%)':h+' (억 원)'):(i===0||i===1?h:h.includes('매출률')?h+' (%)':h+' (억 원)'))];
  function cols(p){
-  const txt=v=>v==null?'—':matrixW(v),diff=v=>v==null?'—':(v>0?'+':'')+matrixW(v);
+  const txt=v=>v==null?'—':matrixW(v),diff=v=>v==null?'—':eok1(v)===0?'0.00':(v>0?'+':'')+matrixW(v);
   return `${show.map(m=>`<td>${matrixW(p.months[m])}</td>`).join('')}<td>${matrixW(p.avg)}</td><td class="sku-v115-now v61-current">${matrixW(p.now)}</td><td class="v61-benchmark">${txt(p.expected)}</td><td class="${dTone(p.prevDiff)}">${diff(p.prevDiff)}</td><td class="${dTone(p.avgDiff)}">${diff(p.avgDiff)}</td><td class="${rTone(p.rate)}">${matrixPercent(p.rate)}</td>`;
  }
  function exportRow(sku,v,p){
