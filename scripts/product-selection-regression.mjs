@@ -80,6 +80,7 @@ function fixture(initial = {}) {
     head:new Element('head'),
   };
   const window = {
+    __sfVendorPaceContext:(month,hist)=>({month,available:hist.length>0,cuts:Object.fromEntries(hist.map(m=>[m,m+'-31']))}),
     addEventListener:(name,fn,options)=>register(windowEvents,name,fn,options),
     dispatchEvent:event=>{for(const {fn} of windowEvents.get(event.type)||[])fn(event);},
     SEED_DATA:{dailyRecords:[
@@ -202,7 +203,7 @@ test('pack variants aggregate every month while preserving SKU/vendor exports',(
  const f=fixture({group:G2,rows:packs});
  const r=f.window.__SF_SKU_VENDOR_EXPORT.rows;
  const sum=r.find(x=>x[0]==='펙수클루정 10밀리그램 합계');
- assert.deepEqual(Array.from(sum.slice(1,8)),['포장단위 합계',6,6,1.8,-4.2,-4.2,30]);
+ assert.deepEqual(Array.from(sum.slice(1,9)),['포장단위 합계',6,6,1.8,6,-4.2,-4.2,30]);
  assert.equal(r.filter(x=>x[0]==='펙수클루정 10밀리그램 합계').length,1);
  for(const pack of [28,100,300])assert.ok(r.some(x=>x[0]===`펙수클루정 10밀리그램 ${pack}T`&&x[1]===A));
  assert.match(f.compare.innerHTML,/<tr hidden[^>]*data-sku-v121-ancestors="f\d+"[^>]*class="sku-v115-subtotal"/);
