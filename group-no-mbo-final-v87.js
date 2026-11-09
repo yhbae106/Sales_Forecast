@@ -13,7 +13,7 @@ function render(){
  for(const m of show)maps[m]=d.by[m]?.[g]||{total:0,outside:0,v:{}};
  if(pace?.available&&pace.month===month){for(const r of d.dayRecords){const m=r.d.slice(0,7);if(r.g!==g||!pace.cuts[m]||r.d>pace.cuts[m])continue;const x=aligned[m]||(aligned[m]={total:0,outside:0,v:{}});x.total+=r.a;if(KEY.includes(r.v))x.v[r.v]=(x.v[r.v]||0)+r.a;else x.outside+=r.a}}
  const comparable=!!(pace?.available&&pace.month===month),sameAvg=fn=>comparable?hist.reduce((s,m)=>s+fn(aligned[m]||{}),0)/hist.length:null,prevSame=fn=>comparable?fn(aligned[last]||{}):null;
- const fmt=v=>v==null?'—':(v>0?'+':'')+W(v),num=v=>v==null?'—':W(v),tone=v=>v==null?'sf-tone-neutral':v>=0?'v61-pos':'v61-neg',rateTone=v=>v==null?'sf-tone-neutral':v>=1?'v61-pos':'v61-neg';
+ const eok1=v=>Math.sign(v)*Math.round(Math.abs(v)/1e7)/10,fmt=v=>v==null?'—':eok1(v)===0?'0.0':(v>0?'+':'')+W(v),num=v=>v==null?'—':W(v),tone=v=>v==null||eok1(v)===0?'sf-tone-neutral':v>0?'v61-pos':'v61-neg',rateTone=v=>v==null?'sf-tone-neutral':Number((v*100).toFixed(1))>=100?'v61-pos':'v61-neg';
  const avg={};KEY.forEach(v=>avg[v]=hist.length?hist.reduce((s,m)=>s+N(d.by[m]?.[g]?.v?.[v]),0)/hist.length:0);
  const outsideAvg=hist.length?hist.reduce((s,m)=>s+N(d.by[m]?.[g]?.outside),0)/hist.length:0,curTotal=N(cur.total),lastMap=d.by[last]?.[g]||{outside:0,v:{}};
  const current=$('#groupCurrent'),rate=$('#groupRate'),need=$('#groupNeed');if(current)current.textContent=W(curTotal)+'억';
