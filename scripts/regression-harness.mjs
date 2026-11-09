@@ -201,6 +201,13 @@ if (!upperHistory.includes('v39-current-head')) fail('current-month vendor colum
 if (!upperHistory.includes('border-left:2px solid rgba(34,211,238,.72)') || !upperHistory.includes('border-right:2px solid rgba(34,211,238,.72)')) fail('current-month vendor column must retain its vertical outline');
 if (!upperHistory.includes('font-weight:950')) fail('current-month vendor values must remain strongly emphasized');
 if (!upperHistory.includes('scrollLeft=box.scrollWidth')) fail('vendor history must open on the recent-month side while keeping older months scrollable');
+for(const field of ['기준일 기대 누계','전월 동일시점 대비 증감','확정월 동일시점 대비 증감','기준일 대비 매출률']){
+ if(!upperHistory.includes(field))fail('vendor table missing same-stage comparator: '+field);
+}
+if(!upperHistory.includes("sourceAsOfDate(window.__sfSharedMeta||{},cur,last)")||!upperHistory.includes("const rate=expected>0?now/expected:null"))fail('vendor sales rate must use the upload-date same-stage expected cumulative, not whole-month average');
+if(!upperHistory.includes("v39-rate-good':'v39-rate-bad")||!upperHistory.includes("v39-rate-neutral"))fail('vendor pace colors must be good, bad, or neutral only');
+if(upperHistory.includes('rate:avg?now/avg:0'))fail('vendor pace must not use full-month average in rate');
+
 
 for (const label of ['26.','확정월 평균','진행월 현재','직전월 대비 현재 증감','확정월 평균 대비 현재 증감','확정월 평균 대비 현재 매출율']) {
   if (label === '26.') continue;
@@ -306,6 +313,7 @@ const deployWorkflow=read('.github/workflows/deploy-pages.yml');
 const gate=deployWorkflow.indexOf('node scripts/regression-harness.mjs');
 if(gate<0||gate>deployWorkflow.indexOf('actions/upload-pages-artifact'))fail('Pages upload must follow a successful data/runtime harness');
 try{await import('./reliability-regression.mjs');ok('production reliability behavioral regressions');}catch(error){fail('reliability regression: '+error.stack);}
+try{await import('./vendor-pace-regression.mjs');ok('vendor date-aligned pace regressions');}catch(error){fail('vendor pace regression: '+error.stack);}
 for(const suite of ['product-selection-regression.mjs','mbo-display-regression.mjs','navigation-regression.mjs','kpi-display-regression.mjs']){
   try{await import('./'+suite);ok(suite+' behavioral regressions');}catch(error){fail(suite+': '+error.stack);}
 }
