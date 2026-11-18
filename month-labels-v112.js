@@ -105,18 +105,29 @@ function apply(){
   }
 }
 let pending=false;
+const observer=new MutationObserver(schedule);
 function schedule(){
   if(pending)return;
   pending=true;
-  requestAnimationFrame(()=>{pending=false;apply()});
-}
-const obs=new MutationObserver(schedule);
-function start(){
-  if(!document.body){setTimeout(start,40);return}
-  obs.observe(document.body,{subtree:true,childList:true,characterData:true});
-  schedule();
+  requestAnimationFrame(()=>{
+    pending=false;
+    observer.disconnect();
+    apply();
+    // Renderers replace table heads; row changes cannot alter period labels.
+    for(const id of TABLE_IDS){
+      const table=document.getElementById(id);
+      if(!table)continue;
+      observer.observe(table,{childList:true});
+      if(table.tHead)observer.observe(table.tHead,{childList:true,subtree:true,characterData:true});
+    }
+    // The text editor can restore its original wording after a table render.
+    const captions=[$('.top .muted'),$('#compareTitle'),...['compareTable','groupTargetTable'].map(id=>
+      document.getElementById(id)?.closest('section.panel')?.querySelector('.head p'))];
+    for(const caption of captions)if(caption)observer.observe(caption,{childList:true,subtree:true,characterData:true});
+  });
 }
 document.addEventListener('change',e=>{if(e.target?.id==='month')schedule()},true);
-['sf-core-ready','sf-vendor-table-rendered','sf-v61-ready','sf-data-refreshed','sf-ui-text-updated','sf-layout-updated'].forEach(ev=>window.addEventListener(ev,schedule));
-start();
+['sf-core-ready','sf-vendor-table-rendered','sf-product-table-rendered','sf-v61-ready','sf-detail-shell-ready',
+ 'sf-master-mode-change','sf-data-refreshed','sf-ui-text-updated','sf-layout-updated'].forEach(ev=>window.addEventListener(ev,schedule));
+schedule();
 })();

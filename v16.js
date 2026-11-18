@@ -1,7 +1,53 @@
-(()=>{'use strict';const V='133',core=['shared-v31.js?v=133','master-upload-v34.js?v=133','upload-diff-v99.js?v=133','kpi-layout-v37.js?v=133','upper-history-v39.js?v=133','vendor-mbo-gap-v43.js?v=133','vendor-close-ui-v67.js?v=133','boundary-forecast-v113.js?v=133','forecast-progress-v81.js?v=133','group-info-no-mbo-v82.js?v=133','group-no-mbo-final-v87.js?v=133'],ui=['export-v21.js','ui-streamline-v46.js','vendor-excel-format-v48.js','detail-shell-v61.js','final-layout-v53.js','unified-loader-v74.js','visual-polish-v74.js','semantic-colors-v109.js','decision-radar-v93.js','premium-visual-v110.js','master-text-editor-v95.js'].map(x=>x+'?v='+V);
-function loader(){document.documentElement.classList.add('sf-booting');if(!document.getElementById('sfLoaderV74')){const o=document.createElement('div');o.id='sfLoaderV74';o.className='sf-loader-v74';o.innerHTML='<div class="box"><div class="ring" aria-hidden="true"></div><div class="txt">대시보드 로딩 중...</div></div>';document.body.appendChild(o)}}
-window.__sfShowLoadError=message=>{window.__sfBootFailed=true;loader();const box=document.querySelector('#sfLoaderV74 .box');if(!box)return;box.replaceChildren();const title=document.createElement('div');title.className='txt';title.textContent='대시보드를 불러오지 못했습니다.';const detail=document.createElement('p');detail.textContent=message;detail.style.cssText='max-width:420px;padding:0 20px;text-align:center;line-height:1.6;font-size:12px';const retry=document.createElement('button');retry.type='button';retry.textContent='다시 불러오기';retry.style.cssText='padding:10px 18px;border-radius:8px;cursor:pointer';retry.onclick=()=>location.reload();box.append(title,detail,retry)};
-window.__sfLoadScript=src=>new Promise((resolve,reject)=>{const script=document.createElement('script');let settled=false;const finish=error=>{if(settled)return;settled=true;clearTimeout(timer);script.onload=null;script.onerror=null;if(error){script.remove();reject(error)}else resolve()};const timer=setTimeout(()=>finish(new Error('화면 구성 파일 응답이 지연됩니다. 다시 불러와 주세요.')),20000);script.src=src;script.async=false;script.onload=()=>finish();script.onerror=()=>finish(new Error('화면 구성 파일을 불러오지 못했습니다: '+src.split('?')[0]));document.body.appendChild(script)});
-function preload(src){if(document.querySelector('link[data-sf-preload="'+src+'"]'))return;const link=document.createElement('link');link.rel='preload';link.as='script';link.href=src;link.dataset.sfPreload=src;document.head.appendChild(link)}
-loader();['data.js?v='+V,...core,...ui].forEach(preload);window.__sfLoadScript('data-reliability.js?v='+V).then(()=>window.__sfLoadScript('bootstrap-v36.js?v='+V)).catch(error=>window.__sfShowLoadError(error.message));
+(() => {
+  'use strict';
+  const V='134';
+  const bundled = window.__sfBundledScripts;
+  const requests = new Map();
+
+  window.__sfShowLoadError = message => {
+    window.__sfBootFailed = true;
+    document.documentElement.classList.add('sf-booting');
+    const box = document.querySelector('#sfLoaderV74 .box');
+    if (!box) return;
+    const title = document.createElement('strong');
+    title.textContent = '매출 대시보드를 불러오지 못했습니다.';
+    const detail = document.createElement('p');
+    detail.textContent = message;
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.textContent = '다시 불러오기';
+    retry.onclick = () => location.reload();
+    box.replaceChildren(title, detail, retry);
+    box.setAttribute('role', 'alert');
+  };
+
+  function fetchScript(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      const finish = error => {
+        clearTimeout(timer);
+        script.onload = script.onerror = null;
+        if (error) { script.remove(); reject(error); } else resolve();
+      };
+      const timer = setTimeout(() => finish(new Error('파일 응답이 지연됩니다. 다시 불러와 주세요.')), 20000);
+      script.async = false;
+      script.src = src;
+      script.onload = () => finish();
+      script.onerror = () => finish(new Error('파일을 불러오지 못했습니다. ' + src.split('?')[0]));
+      document.body.appendChild(script);
+    });
+  }
+
+  window.__sfLoadScript = src => {
+    const name = src.split('?')[0];
+    if (!requests.has(src)) {
+      const run = bundled && Object.hasOwn(bundled, name) ? bundled[name] : null;
+      const task = run ? Promise.resolve().then(run) : fetchScript(src);
+      requests.set(src, task.catch(error => { requests.delete(src); throw error; }));
+    }
+    return requests.get(src);
+  };
+  window.__sfLoadScript('data-reliability.js?v=' + V)
+    .then(() => window.__sfLoadScript('bootstrap-v36.js?v=' + V))
+    .catch(error => window.__sfShowLoadError(error.message));
 })();

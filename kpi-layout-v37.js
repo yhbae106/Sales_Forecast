@@ -35,16 +35,33 @@ function apply(){
   const mboSub=mboGap==null?'목표·실적 확인 후 계산':mboGap>0?'현재 누계 대비 부족액':'MBO 이상 달성';
   const paceSub=paceGap==null?'기준 목표·실적 확인 후 계산':paceGap>0?'기준 누계 대비 부족액':'기준 이상 확보';
   if(fresh){
-   const order=[cloneCard(m.mbo,'mbo'),cloneCard(m.current,'current'),cloneCard(m.mboRate,'mboRate'),makeGapCard('mboGap','MBO Gap',mboGap==null?'계산 대기':mboGap.toFixed(1)+'억',mboSub,mboGap===0),cloneCard(m.paceTarget,'paceTarget'),makeGapCard('paceGap','기준일 Gap',paceGap==null?'계산 대기':paceGap.toFixed(1)+'억',paceSub,paceGap===0),cloneCard(m.forecast,'forecast'),cloneCard(m.forecastRate,'forecastRate')].filter(Boolean);
+   const order = [
+    cloneCard(m.current, 'current'), cloneCard(m.forecast, 'forecast'), cloneCard(m.paceRate, 'paceRate'),
+    makeGapCard('mboGap', 'MBO 부족액', mboGap==null?'계산 대기':mboGap.toFixed(1)+'억', mboSub, mboGap===0),
+    cloneCard(m.mbo, 'mbo'), cloneCard(m.mboRate, 'mboRate'), cloneCard(m.forecastRate, 'forecastRate'),
+    cloneCard(m.paceTarget, 'paceTarget'),
+    makeGapCard('paceGap', '기준일 부족액', paceGap==null?'계산 대기':paceGap.toFixed(1)+'억', paceSub, paceGap===0),
+   ];
    cards.replaceChildren(...order);m=cardMap();changed=true;
   }
   changed=gapCard(m.mboGap,mboGap,mboSub)||changed;changed=gapCard(m.paceGap,paceGap,paceSub)||changed;
+  const pace = m.paceRate;
+  // Keep the engine's full-precision percentage and its original threshold classification.
+  const rate = pace?.querySelector('.value');
+  const comparable = mbo > 0 && target > 0 && num(rate?.textContent) != null;
+  if (pace && rate) {
+    const above = rate.classList.contains('good');
+    pace.dataset.pace = comparable ? (above ? 'above' : 'below') : 'unknown';
+    const comparison = !comparable ? '비교 기준 대기' : above ? '기준 이상' : '기준 미달';
+    const adjusted = paceCurrent != null && cur != null && Math.abs(paceCurrent-cur) > .05;
+    changed = text(pace.querySelector('.sub'), comparable ? comparison+' · '+(adjusted?'보정':'실제')+' 누계 ÷ 기준일 목표' : comparison) || changed;
+  }
   let sum=$('#kpiFlowSummary');if(!sum){sum=document.createElement('section');sum.id='kpiFlowSummary';sum.className='panel kpi-flow-summary';cards.insertAdjacentElement('afterend',sum);changed=true}
   const signature=JSON.stringify(a);
   if(sum.dataset.kpiSignature!==signature){
    sum.dataset.kpiSignature=signature;
    const adjusted=paceCurrent!=null&&cur!=null&&Math.abs(paceCurrent-cur)>.05;
-   sum.innerHTML=`<div class="kpi-flow-row"><span class="kpi-flow-title">MBO 기준</span><span class="kpi-flow-main">${mbo==null?'-':mbo.toFixed(1)+'억'} → 현재 ${cur==null?'-':cur.toFixed(1)+'억'} → <strong>${mboRate}</strong></span><span class="kpi-flow-gap">Gap <strong>${mboGap==null?'-':mboGap.toFixed(1)+'억'}</strong></span></div><div class="kpi-flow-row"><span class="kpi-flow-title">오늘 기준 순도 목표</span><span class="kpi-flow-main">${target==null?'-':target.toFixed(1)+'억'} → ${adjusted?'보정 누계':'현재'} ${paceCurrent==null?'-':paceCurrent.toFixed(1)+'억'} → <strong>${paceRate}</strong></span><span class="kpi-flow-gap">Gap <strong>${paceGap==null?'-':paceGap.toFixed(1)+'억'}</strong></span></div>`;
+   sum.innerHTML=`<div class="kpi-flow-row"><span class="kpi-flow-title">MBO 기준</span><span class="kpi-flow-main">${mbo==null?'-':mbo.toFixed(1)+'억'} → 현재 ${cur==null?'-':cur.toFixed(1)+'억'} → <strong>${mboRate}</strong></span><span class="kpi-flow-gap">부족액 <strong>${mboGap==null?'-':mboGap.toFixed(1)+'억'}</strong></span></div><div class="kpi-flow-row"><span class="kpi-flow-title">기준일 목표</span><span class="kpi-flow-main">${target==null?'-':target.toFixed(1)+'억'} → ${adjusted?'보정 누계':'현재'} ${paceCurrent==null?'-':paceCurrent.toFixed(1)+'억'} → <strong>${paceRate}</strong></span><span class="kpi-flow-gap">부족액 <strong>${paceGap==null?'-':paceGap.toFixed(1)+'억'}</strong></span></div>`;
    changed=true;
   }
   const oldHelp=sum.nextElementSibling;if(oldHelp?.querySelector?.('.help'))oldHelp.style.display='none';
@@ -52,6 +69,17 @@ function apply(){
  }finally{busy=false}
 }
 function schedule(){if(queued)return;queued=true;setTimeout(()=>{queued=false;apply()},0)}
+const detailToggle = $('#sfKpiDetails');
+if (detailToggle) detailToggle.addEventListener('click', () => {
+ const open = detailToggle.getAttribute('aria-expanded') !== 'true';
+ detailToggle.setAttribute('aria-expanded', String(open));
+ detailToggle.textContent = open ? '지표 상세 접기' : '지표 상세 보기';
+ $('#cards').dataset.expanded = String(open);
+});
+window.addEventListener('sf-master-mode-change', event => {
+ const settings = $('#sfSettings');
+ if (settings && event.detail?.on) settings.open = true;
+});
 addStyle();const obs=new MutationObserver(schedule);const start=()=>{const c=$('#cards');if(c){obs.observe(c,{childList:true,subtree:true,characterData:true});apply()}else setTimeout(start,100)};
 start();document.addEventListener('change',e=>{if(e.target?.id==='month')setTimeout(apply,30)});window.addEventListener('sf-settings-committed',()=>setTimeout(apply,30));
 })();

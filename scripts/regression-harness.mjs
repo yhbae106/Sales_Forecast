@@ -2,6 +2,7 @@
 await import('../my-hub/scripts/verify.mjs');
 import fs from 'node:fs';
 import { Script } from 'node:vm';
+import { execFileSync } from 'node:child_process';
 
 const read = p => fs.readFileSync(p, 'utf8');
 const fail = m => { console.error('HARNESS FAIL:', m); process.exitCode = 1; };
@@ -49,13 +50,16 @@ const bootstrap = read('bootstrap-v36.js');
 const exportLoader = read('export-v19.js');
 const unifiedLoader = read('unified-loader-v74.js');
 
-const m = index.match(/v16\.js\?v=(\d+)/);
-if (!m) fail('index runtime version not found');
-const version = m?.[1] || '';
+// Validate the exact file served by Pages, including every embedded source module.
+execFileSync(process.execPath, ['scripts/pack-dashboard.mjs', '--check'], {stdio:'inherit'});
+const packed = read('sales-dashboard.js');
+const version = v16.match(/const V='(\d+)'/)?.[1] || '';
+if (!version) fail('runtime version not found');
+const scripts = [...index.matchAll(/<script[^>]*\bsrc="([^"]+)"/g)].map(match=>match[1]);
+if (scripts.length!==1 || !/^sales-dashboard\.js\?v=[a-f0-9]{12}$/.test(scripts[0])) fail('expected one content-versioned entry');
+const seedSrc = bootstrap.match(/load\('(data\.js\?v=\d+)'\)/)?.[1];
+if (!seedSrc || !index.includes('rel="preload" href="'+seedSrc+'" as="script"')) fail('seed preload and execution must share the same URL');
 const required = [
-  ['index bootstrap', index, new RegExp('bootstrap-v36\\.js\\?v=' + version)],
-  ['index export', index, new RegExp('export-v19\\.js\\?v=' + version)],
-  ['v16 version', v16, new RegExp("const V='" + version + "'")],
   ['bootstrap legacy', bootstrap, new RegExp('v16-legacy\\.js\\?v=' + version)],
   ['bootstrap shared', bootstrap, new RegExp('shared-v31\\.js\\?v=' + version)],
   ['bootstrap upload', bootstrap, new RegExp('master-upload-v34\\.js\\?v=' + version)],
@@ -86,7 +90,7 @@ if (!read('v16-legacy.js').includes("window.addEventListener('sf-data-refreshed'
 ok('shared upload freshness and partial-month merge guards present');
 
 const uploadDiff = read('upload-diff-v99.js');
-if (!v16.includes("'upload-diff-v99.js?v=" + version + "'")) fail('core preloader is missing upload diff inspector');
+if (!packed.includes('"upload-diff-v99.js": function')) fail('bundle is missing upload diff inspector');
 if (!read('shared-v31.js').includes('buildUploadDiff(previousRows,nextRows,sourceFiles)')) fail('shared runtime must calculate upload-to-upload row diffs');
 if (!read('shared-v31.js').includes('window.__SF_LAST_UPLOAD_DIFF=got.lastUploadDiff||null')) fail('verified shared write must expose the latest upload diff');
 if (!bootstrap.includes('window.__SF_LAST_UPLOAD_DIFF=shared.lastUploadDiff||null')) fail('bootstrap must hydrate persisted upload diff');
@@ -252,7 +256,7 @@ if (index.includes('통상 230~270억')) fail('obsolete operating range survives
 if (!radar.includes('histProgress:progressVals,historySamples') || !radar.includes('prevMonthClose:total(pm)')) fail('radar must use the same historical inputs as the top forecast');
 ok('300eok planning ceiling, no 230eok floor, and consistent forecast training');
 const sharedRuntime = read('shared-v31.js');
-if (!v16.includes("'decision-radar-v93.js'")) fail('decision radar is not preloaded by v16');
+if (!packed.includes('"decision-radar-v93.js": function')) fail('decision radar is missing from the runtime bundle');
 if (!exportLoader.includes("'decision-radar-v93.js'")) fail('decision radar is not loaded by final UI loader');
 for (const label of ['운영 판단 · 이슈 레이더','월마감 전망','남은 MBO','잔여 영업일 필요 일평균','최근 3개월 마감 평균','월 마감 추세','관리업체 전체 현황','제품군 이슈']) {
   if (!radar.includes(label)) fail('decision radar missing decision label: ' + label);
@@ -261,7 +265,6 @@ if (radar.includes('MutationObserver')) fail('decision radar must remain event-d
 if (!radar.includes('vendorStatus=KEY.map')) fail('decision radar must show all eight managed vendors');
 if (!radar.includes('sf-radar-scroll')) fail('decision radar must provide scrollable issue tables');
 if (radar.includes('slice(0,6)')) fail('product-group issue radar must not truncate issues to six rows');
-if (!radar.includes("let renderTimer=null,dataCache=null,dataSig=''")) fail('decision radar must cache source rows');
 if (!radar.includes('phase(m,last,bounds(m,hist,sched))') || !radar.includes('cuts[h]=eq(')) fail('decision radar must compare equivalent collection progress positions');
 if (!radar.includes('krHolidays2026') || !radar.includes('customHolidaysByMonth')) fail('decision radar business days must exclude holidays');
 if (!forecastProgress.includes('krHolidays2026') || !forecastProgress.includes('customHolidaysByMonth')) fail('overall forecast business days must exclude holidays');
@@ -320,13 +323,13 @@ const gate=deployWorkflow.indexOf('node scripts/regression-harness.mjs');
 if(gate<0||gate>deployWorkflow.indexOf('actions/upload-pages-artifact'))fail('Pages upload must follow a successful data/runtime harness');
 try{await import('./reliability-regression.mjs');ok('production reliability behavioral regressions');}catch(error){fail('reliability regression: '+error.stack);}
 try{await import('./vendor-pace-regression.mjs');ok('vendor date-aligned pace regressions');}catch(error){fail('vendor pace regression: '+error.stack);}
-for(const suite of ['product-selection-regression.mjs','mbo-display-regression.mjs','navigation-regression.mjs','kpi-display-regression.mjs']){
+for(const suite of ['product-selection-regression.mjs','mbo-display-regression.mjs','navigation-regression.mjs','kpi-display-regression.mjs','render-data-performance.mjs']){
   try{await import('./'+suite);ok(suite+' behavioral regressions');}catch(error){fail(suite+': '+error.stack);}
 }
 
 const textEditor = read('master-text-editor-v95.js');
 const kpiLayout = read('kpi-layout-v37.js');
-if (!v16.includes("'master-text-editor-v95.js'")) fail('master text editor is not preloaded by v16');
+if (!packed.includes('"master-text-editor-v95.js": function')) fail('master text editor is missing from the runtime bundle');
 if (!exportLoader.includes("'master-text-editor-v95.js'")) fail('master text editor is not loaded by final UI loader');
 if (!bootstrap.includes('window.__SF_UI_TEXT')) fail('bootstrap does not expose shared uiText');
 if (!sharedRuntime.includes('window.__sfPublishUiText')) fail('shared runtime does not publish dashboard text settings');
@@ -354,7 +357,6 @@ if (!visualPolish.includes('content-visibility:auto')) fail('below-the-fold pane
 if (!finalLayout.includes("'sf-defer-render'")) fail('lower analysis panels are not marked for deferred paint');
 if (!visualPolish.includes('#vendorTable th:nth-child(2)')) fail('wide vendor table is missing sticky identity columns');
 if (!visualPolish.includes('#groupTable th:first-child')) fail('wide product/SKU tables are missing sticky identity columns');
-if (!unified.includes("allCache=null,allSig=''")) fail('unified renderer sales-row cache is missing');
 if (!legacy.includes('allCache=null')) fail('legacy renderer sales-row cache is missing');
 if (legacy.includes('function render(){cards();vendor();groups();detail();compare();groupTarget()}')) fail('legacy renderer still computes hidden detail/compare tables on every render');
 if (legacy.includes('function dayTable()')) fail('retired dayTable code is still bundled');

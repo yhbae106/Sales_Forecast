@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const source=fs.readFileSync(new URL('../kpi-layout-v37.js',import.meta.url),'utf8');
-const keys=['mbo','current','mboRate','mboGap','paceTarget','paceGap','forecast','forecastRate'];
+const keys=['current','forecast','paceRate','mboGap','mbo','mboRate','forecastRate','paceTarget','paceGap'];
 const labels=['MBO 목표','현재 누계','현재 MBO 달성률','예상 마감','예상 MBO 달성률','기준일 목표 누계','기준일 달성률','기준일 부족액'];
 function fixture(initial={}){
   const elements=new Map(),timers=[],events=[],observers=[];
@@ -36,7 +36,7 @@ function fixture(initial={}){
 let passed=0;
 function test(name,fn){fn();passed++;console.log('KPI DISPLAY OK:',name);}
 
-test('restored layout keeps engine actual and forecast values in the intended eight-card order',()=>{
+test('restored layout keeps engine actual and forecast values with the four overview measures first',()=>{
   const f=fixture();assert.deepEqual(f.cards.children.map(c=>c.dataset.kpiKey),keys);
   assert.equal(f.value('current'),'187.7억');assert.equal(f.value('forecast'),'270.0억');assert.equal(f.value('forecastRate'),'103.8%');
   assert.equal(f.value('mboGap'),'72.3억');assert.equal(f.value('paceGap'),'0.0억');assert.equal(f.card('paceTarget').querySelector('.sub').textContent,'engine explanation');
