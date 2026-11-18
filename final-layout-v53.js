@@ -22,7 +22,7 @@ const destinations=[
 ];
 function navigation(){
   const cards=$('#cards');if(!cards)return;let nav=$('#sfSectionNav');
-  if(!nav){nav=document.createElement('nav');nav.id='sfSectionNav';nav.className='sf-section-nav';nav.setAttribute('aria-label','대시보드 구역 바로가기');const label=document.createElement('span');label.className='sf-nav-label';label.textContent='바로가기';nav.appendChild(label);for(const[key,text]of destinations){const b=document.createElement('button');b.type='button';b.dataset.sfJump=key;b.textContent=text;nav.appendChild(b)}cards.insertAdjacentElement('beforebegin',nav)}
+  if(!nav){nav=document.createElement('nav');nav.id='sfSectionNav';nav.className='sf-section-nav';nav.setAttribute('aria-label','대시보드 구역 바로가기');const label=document.createElement('span');label.className='sf-nav-label';label.textContent='바로가기';nav.appendChild(label);for(const[key,text]of destinations){const b=document.createElement('button');b.type='button';b.dataset.sfJump=key;b.textContent=text;nav.appendChild(b)}($('#sfOverviewHead')||cards).insertAdjacentElement('beforebegin',nav)}
   for(const[key,,resolve]of destinations){const target=resolve(),button=nav.querySelector('[data-sf-jump="'+key+'"]');if(button)button.hidden=!target;if(target){target.classList.add('sf-jump-target');target.setAttribute('tabindex','-1')}}
 }
 function applyGroupSearch(){

@@ -29,7 +29,13 @@ function progress(m,d,data){
  window.__SF_PROGRESS_DETAIL={month:m,date:d,hist:[...hist],vals:[...vals],samples,p};
  return p;
 }
-function prevMonth(m){const[y,mo]=String(m||'').split('-').map(Number),d=new Date(y,mo-2,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}function cardMap(){const o={};document.querySelectorAll('#cards .card').forEach(c=>{const l=c.querySelector('.label')?.textContent?.trim();if(l)o[l]=c});return o}function setCard(c,val,sub,cls){if(!c)return;const v=c.querySelector('.value'),s=c.querySelector('.sub');if(v){v.textContent=val;v.classList.remove('good','warn','bad','info');if(cls)v.classList.add(cls)}if(s&&sub!=null)s.textContent=sub}
+function prevMonth(m){const[y,mo]=String(m||'').split('-').map(Number),d=new Date(y,mo-2,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}function cardMap(){
+ const keyed={forecast:'예상 마감',forecastRate:'예상 MBO 달성률',paceTarget:'기준일 목표 누계',paceRate:'기준일 달성률'};
+ const map={};document.querySelectorAll('#cards .card').forEach(card=>{
+  const label=card.querySelector('.label')?.textContent?.trim();if(label)map[label]=card;
+  const key=keyed[card.dataset?.kpiKey];if(key)map[key]=card;
+ });return map;
+}function setCard(c,val,sub,cls){if(!c)return;const v=c.querySelector('.value'),s=c.querySelector('.sub');if(v){v.textContent=val;v.classList.remove('good','warn','bad','info');if(cls)v.classList.add(cls)}if(s&&sub!=null)s.textContent=sub}
 function patch(){
  const m=$('#month')?.value||'',data=build(),o=data.dailies[m]||{},salesLast=latest(o),d=asOfDate(m,o);
  if(!m||!d)return;

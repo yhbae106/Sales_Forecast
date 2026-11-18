@@ -1,6 +1,9 @@
 (()=>{'use strict';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],N=v=>Number(v||0),W=v=>(N(v)/1e8).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1}),P=v=>Number.isFinite(v)?`(${(v*100).toFixed(1)}%)`:'-',X=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),RB=v=>{if(v==null)return '<span class="sf-ratebar"><b>—</b></span>';const pct=Math.max(0,Math.min(140,N(v)*100))/140*100;return`<span class="sf-ratebar" style="--rate:${pct.toFixed(1)}%"><i></i><b>${P(v)}</b></span>`};
-const STORE='sales_forecast_v16',CLOSE_KEY='sales_forecast_vendor_closed_v66',KEY=['백제약품영등포지점','백제약품(주)영남본부','대전백제약품','백제약품(주)원주지점','(주)인천약품','(주)복산나이스','유진약품(주)','아이팜코리아(주)'];let upperVendor='',gSort='avg',gDir='desc',cSort='avg',cDir='desc',mSort='avg',mDir='desc',busy=false,inputTm,allCache=null,allSig='';
+const STORE='sales_forecast_v16',CLOSE_KEY='sales_forecast_vendor_closed_v66',KEY=['백제약품영등포지점','백제약품(주)영남본부','대전백제약품','백제약품(주)원주지점','(주)인천약품','(주)복산나이스','유진약품(주)','아이팜코리아(주)'];
+const EMPTY_ROWS=[];
+let upperVendor='',gSort='avg',gDir='desc',cSort='avg',cDir='desc',mSort='avg',mDir='desc',busy=false,inputTm;
+let indexCache=null,stateSource,stateCache={};
 window.__SF_UNIFIED_FINAL_ACTIVE=true;upperVendor=window.__SF_UPPER_VENDOR||'';
 // The MBO and SKU controls describe the same product scope. Keep selection separate
 // from persisted MBO values so navigation cannot commit a target for another group.
@@ -37,17 +40,59 @@ function restoreProductSelection(origin=''){
  syncProductSelection(group,origin||'init');
 }
 
-function state(){try{return JSON.parse(localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}')}catch(e){return{}}}
-function saveState(z){try{localStorage.setItem(STORE,JSON.stringify(z))}catch(e){}}
+function state(){
+ try{
+  const raw=localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}';
+  if(raw!==stateSource){stateSource=raw;stateCache={};stateCache=JSON.parse(raw)||{}}
+  return stateCache;
+ }catch(e){return{}}
+}
+function saveState(z){
+ try{
+  const raw=JSON.stringify(z);localStorage.setItem(STORE,raw);
+  stateSource=raw;stateCache=z;
+ }catch(e){}
+}
 function closeState(){let local={};try{local=JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){}const shared=window.__SF_SHARED_CLOSED;return shared&&typeof shared==='object'?{...local,...shared}:local}
 function closedSet(){return new Set(closeState()[cur()]||[])}
-function stored(){const z=state(),a=z.up||z.uploadRows||z.uploads;return Array.isArray(a)&&a.length?a:(window.__SF_SHARED_UPLOADS||[])}
-function all(){const raw=window.SEED_DATA?.dailyRecords||[],storedRows=stored(),sig=raw.length+'|'+storedRows.length+'|'+(window.__SF_SHARED_LAST||'');if(allCache&&sig===allSig)return allCache;const up=storedRows.map(r=>({d:r.d||r.date,v:r.v||r.vendor||'',g:r.g||r.productGroup||'미분류',m:r.m||r.material||'미분류',a:N(r.a??r.amount)})),rep=new Set(up.map(r=>r.d)),seed=raw.map(r=>({d:r.date,v:r.vendor||'',g:r.productGroup||'미분류',m:r.material||'미분류',a:N(r.amount)}));allCache=seed.filter(r=>!rep.has(r.d)).concat(up);allSig=sig;return allCache}
+function salesIndex(z=state()){
+ const seed=window.SEED_DATA?.dailyRecords||EMPTY_ROWS,local=z.up||z.uploadRows||z.uploads;
+ const uploads=Array.isArray(local)&&local.length?local:(window.__SF_SHARED_UPLOADS||EMPTY_ROWS);
+ if(indexCache?.seed===seed&&indexCache.uploads===uploads)return indexCache;
+
+ const replacedDates=new Set(uploads.map(r=>r.d||r.date)),byMonth=new Map(),byGroup=new Map();
+ function add(row){
+  const month=row.d?.slice(0,7);
+  if(!month)return;
+  if(!byMonth.has(month))byMonth.set(month,[]);
+  byMonth.get(month).push(row);
+  if(!byGroup.has(row.g))byGroup.set(row.g,{rows:[],byMonth:new Map()});
+  const group=byGroup.get(row.g);
+  group.rows.push(row);
+  if(!group.byMonth.has(month))group.byMonth.set(month,[]);
+  group.byMonth.get(month).push(row);
+ }
+ for(const r of seed)if(!replacedDates.has(r.date)){
+  add({d:r.date,v:r.vendor||'',g:r.productGroup||'미분류',m:r.material||'미분류',a:N(r.amount)});
+ }
+ for(const r of uploads){
+  add({d:r.d||r.date,v:r.v||r.vendor||'',g:r.g||r.productGroup||'미분류',m:r.m||r.material||'미분류',a:N(r.a??r.amount)});
+ }
+ indexCache={seed,uploads,byMonth,byGroup,months:[...byMonth.keys()].sort()};
+ return indexCache;
+}
 const cur=()=>$('#month')?.value||'';
-function months(){return[...new Set(all().map(r=>r.d?.slice(0,7)).filter(m=>m&&m<=cur()))].sort()}
-function history(){const ms=months(),hist=ms.filter(m=>m<cur()),show=hist;return{ms,hist,show,last:hist.at(-1)||''}}
+function history(index=salesIndex(),selected=cur()){const ms=index.months.filter(m=>m<=selected),hist=ms.filter(m=>m<selected),show=hist;return{ms,hist,show,last:hist.at(-1)||''}}
 function scope(rs,v){if(!v)return rs;if(v==='권역 외 업체')return rs.filter(r=>!KEY.includes(r.v));if(v==='백제약품 전체 합계')return rs.filter(r=>KEY.slice(0,4).includes(r.v));return rs.filter(r=>r.v===v)}
-function map(rs,key){const o={};rs.forEach(r=>{const k=r[key]||'미분류';o[k]=(o[k]||0)+N(r.a)});return o}
+function sumRows(rows,key,cut){
+ const totals={},aligned={};
+ for(const r of rows){
+  const name=r[key]||'미분류',amount=N(r.a);
+  totals[name]=(totals[name]||0)+amount;
+  if(cut&&r.d<=cut)aligned[name]=(aligned[name]||0)+amount;
+ }
+ return{totals,aligned};
+}
 function style(){if($('#unifiedFinalV73Style'))return;const s=document.createElement('style');s.id='unifiedFinalV73Style';s.textContent=`#groupTable th[data-v61],#v51CompareTable th[data-v61],#groupTargetTable th[data-v61]{cursor:pointer;user-select:none}#groupTable th[data-v61]:hover,#v51CompareTable th[data-v61]:hover,#groupTargetTable th[data-v61]:hover{color:#4fd1c5!important;background:#173752!important}.v61-active{color:#4fd1c5!important;background:#173752!important}.v61-pos{color:#59d98e!important}.v61-neg{color:#ff7285!important}.v61-neutral{color:#94A3B8!important}.v61-benchmark{color:#C2DAE7!important;font-weight:800!important}#groupTable td.v61-pos,#groupTargetTable td.v61-pos,#v51CompareTable td.v61-pos{color:#59d98e!important}#groupTable td.v61-neg,#groupTargetTable td.v61-neg,#v51CompareTable td.v61-neg{color:#ff7285!important}#groupTable td.v61-neutral,#groupTargetTable td.v61-neutral,#v51CompareTable td.v61-neutral{color:#94A3B8!important}.v61-current{background:linear-gradient(180deg,rgba(34,211,238,.13),rgba(20,184,166,.09))!important;color:#D5FFF8!important;border-left:2px solid rgba(34,211,238,.68)!important;border-right:2px solid rgba(34,211,238,.68)!important;font-weight:950!important;text-shadow:0 1px 0 #06131f,0 0 9px rgba(45,212,191,.18)!important}.v61-current-head{background:linear-gradient(180deg,#15364d,#123047)!important;color:#DDFBFF!important;border-left:2px solid rgba(34,211,238,.82)!important;border-right:2px solid rgba(34,211,238,.82)!important;border-top:2px solid rgba(34,211,238,.82)!important;font-weight:950!important}.v61-target{color:#66a7ff!important;font-weight:800}.v61-need{color:#ffb454!important;font-weight:800}.v61-context{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 11px;padding:8px 11px;border:1px solid #4fd1c5;border-radius:10px;background:rgba(79,209,197,.08);font-size:11px;color:#cfe9ec}.v61-context strong{color:#fff;background:rgba(79,209,197,.14);border:1px solid rgba(79,209,197,.45);border-radius:999px;padding:3px 9px}.v61-context .arr{color:#4fd1c5;font-weight:900}.v61-mbo-summary{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0}.v61-mbo-summary .label{font-size:10px;color:#91a9c1;font-weight:800}.v61-chip{font-size:10px;padding:4px 8px;border:1px solid #315a75;border-radius:999px;background:#0d2b42;color:#d7edf5}.v61-chip b{color:#4fd1c5}.v73-closed td{opacity:.62;background:rgba(120,135,150,.05)!important}.v73-closed td:first-child,.v73-closed td.v61-current{opacity:1}.v73-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;border:1px solid #738397;background:rgba(115,131,151,.16);color:#c7d2df;font-size:9px;font-weight:900;white-space:nowrap}.v52-group-banner,.v54-context,.v58-context{display:none!important}.sf-ratebar{position:relative;display:inline-flex;justify-content:flex-end;align-items:center;min-width:78px;height:20px;padding:0 6px;border-radius:6px;overflow:hidden;background:rgba(148,163,184,.08)}.sf-ratebar i{position:absolute;inset:0 auto 0 0;width:var(--rate);background:currentColor;opacity:.16}.sf-ratebar b{position:relative;z-index:1;font-size:10px}.sf-product-drill{font:inherit;font-weight:750;color:inherit;text-align:left;border:0;background:none;padding:0;cursor:pointer}.sf-product-drill:focus-visible{outline:2px solid #4fd1c5;outline-offset:4px;border-radius:3px}#groupTable .sf-selected-product td{background:#163d50!important}#groupTable .sf-selected-product .sf-product-drill{color:#9df4e7}.sf-sku-clear{margin-left:auto;padding:5px 9px;border:1px solid #426a80;border-radius:7px;background:#16364b;color:#d3f3f0;font:inherit;cursor:pointer}.sf-sku-clear:focus-visible{outline:2px solid #4fd1c5}.sku-v115-summary .sf-sku-scope{flex-basis:100%;display:flex;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:1px solid #29475a;padding-bottom:8px}.sku-v115-summary .sf-sku-scope strong{margin-left:4px}.sf-sku-linked{color:#9df4e7;font-size:10px}`;document.head.appendChild(s)}
 function fitHistory(t,count){if(!t)return;t.style.minWidth=Math.max(1180,700+count*88)+'px';const box=t.closest('.table'),m=cur();if(box&&t.dataset.historyViewMonth!==m){t.dataset.historyViewMonth=m;requestAnimationFrame(()=>{box.scrollLeft=box.scrollWidth})}}
 function th(k,l,sk,sd){return`<th data-v61="${X(k)}" class="${sk===k?'v61-active':''}">${l} ${sk===k?(sd==='asc'?'▲':'▼'):'↕'}</th>`}
@@ -55,19 +100,24 @@ function currentTh(k,l,sk,sd){return`<th data-v61="${X(k)}" class="v61-current-h
 function sortRows(rows,k,d){const val=(r,key)=>key==='name'?r.name:key.startsWith('m:')?N(r.months[key.slice(2)]):N(r[key]);rows.sort((a,b)=>k==='name'?(d==='asc'?1:-1)*String(a.name).localeCompare(String(b.name),'ko'):(d==='asc'?1:-1)*(val(a,k)-val(b,k)));return rows}
 function paceFor(hist){const fn=window.__sfVendorPaceContext;if(typeof fn!=='function')return null;const p=fn(cur(),hist);return p?.available&&p.month===cur()?p:null}
 const eok1=v=>Math.sign(v)*Math.round(Math.abs(v)/1e7)/10,dFmt=v=>v==null?'—':eok1(v)===0?'0.0':(eok1(v)>0?'+':'')+W(v),dTone=v=>v==null||eok1(v)===0?'v61-neutral':eok1(v)>0?'v61-pos':'v61-neg',rTone=v=>v==null?'v61-neutral':Number((v*100).toFixed(1))>=100?'v61-pos':'v61-neg',nFmt=v=>v==null?'—':W(v);
-function metrics(kind,vendor='',group=''){
- const {ms,hist,show,last}=history(),maps={},stage={},pace=paceFor(hist),source=all();
- ms.forEach(m=>{let rs=scope(source.filter(r=>r.d?.slice(0,7)===m),vendor);if(group)rs=rs.filter(r=>r.g===group);maps[m]=map(rs,kind);if(m<cur()&&pace)stage[m]=map(rs.filter(r=>r.d<=pace.cuts[m]),kind)});
- const names=[...new Set(ms.flatMap(m=>Object.keys(maps[m]||{})))],cm=maps[cur()]||{};
+function metrics(kind,vendor='',group='',index=salesIndex()){
+ const selected=cur(),{ms,hist,show,last}=history(index,selected),maps={},stage={},pace=paceFor(hist);
+ const byMonth=group?index.byGroup.get(group)?.byMonth:index.byMonth;
+ for(const m of ms){
+  const rows=scope(byMonth?.get(m)||EMPTY_ROWS,vendor);
+  const {totals,aligned}=sumRows(rows,kind,m<selected?pace?.cuts[m]:undefined);
+  maps[m]=totals;stage[m]=aligned;
+ }
+ const names=[...new Set(ms.flatMap(m=>Object.keys(maps[m]||{})))],cm=maps[selected]||{};
  return{show,last,rows:names.map(name=>{
   const mo=Object.fromEntries(show.map(m=>[m,N(maps[m]?.[name])])),avg=hist.length?hist.reduce((s,m)=>s+N(maps[m]?.[name]),0)/hist.length:0,now=N(cm[name]),prev=N(maps[last]?.[name]);
   const expected=pace?hist.reduce((s,m)=>s+N(stage[m]?.[name]),0)/hist.length:null,prevStage=pace?N(stage[last]?.[name]):null;
   return{name,months:mo,avg,now,prev,expected,prevDiff:prevStage==null?null:now-prevStage,avgDiff:expected==null?null:now-expected,rate:expected>0?now/expected:null};
  })}
 }
-function renderGroup(){
+function renderGroup(index=salesIndex()){
  const t=$('#groupTable');if(!t||!cur())return;
- const r=metrics('g',upperVendor),mm=String(Number(cur().slice(5,7)))+'월 누계';
+ const r=metrics('g',upperVendor,'',index),mm=String(Number(cur().slice(5,7)))+'월 누계';
  sortRows(r.rows,gSort,gDir);
  t.innerHTML=`<thead><tr>${th('name','제품군',gSort,gDir)}${r.show.map(m=>th('m:'+m,m.slice(2).replace('-','.'),gSort,gDir)).join('')}${th('avg','확정월 평균',gSort,gDir)}${currentTh('now',mm,gSort,gDir)}${th('expected','기준일 기대 누계',gSort,gDir)}${th('prevDiff','전월 동일시점 대비 증감',gSort,gDir)}${th('avgDiff','확정월 동일시점 대비 증감',gSort,gDir)}${th('rate','기준일 대비 매출률',gSort,gDir)}</tr></thead><tbody>${r.rows.map(x=>`<tr data-v61-group="${X(x.name)}" class="${x.name===selectedProductGroup?'sf-selected-product':''}"><td><button type="button" class="sf-product-drill" aria-pressed="${x.name===selectedProductGroup}" title="${X(x.name)} MBO·SKU 상세 보기">${X(x.name)}</button></td>${r.show.map(m=>`<td>${W(x.months[m])}</td>`).join('')}<td>${W(x.avg)}</td><td class="v61-current">${W(x.now)}</td><td class="v61-benchmark">${nFmt(x.expected)}</td><td class="${dTone(x.prevDiff)}">${dFmt(x.prevDiff)}</td><td class="${dTone(x.avgDiff)}">${dFmt(x.avgDiff)}</td><td class="${rTone(x.rate)}">${RB(x.rate)}</td></tr>`).join('')}</tbody>`;
  fitHistory(t,r.show.length);
@@ -76,10 +126,10 @@ function renderGroup(){
 function syncSkuVendor(v){const s=$('#v51Vendor');if(!s)return;const wanted=[...s.options].some(o=>o.value===v)?v:'';if(s.value!==wanted){s.value=wanted;s.dispatchEvent(new Event('change',{bubbles:true}))}}
 
 let lastSkuMatrixGroup='';
-function buildSkuMatrix(source,group,vendor,selected,hist,show,last){
+function buildSkuMatrix(source,vendor,selected,hist,show,last){
  const skuMap=new Map(),total=Object.create(null),totalAligned=Object.create(null),seenVendors=new Set(),pace=paceFor(hist);
  const add=(o,m,a)=>o[m]=(o[m]||0)+N(a);
- const filtered=scope(source.filter(r=>r.g===group&&r.d&&r.d.slice(0,7)<=selected),vendor);
+ const filtered=scope(source.filter(r=>r.d.slice(0,7)<=selected),vendor);
  for(const r of filtered){
   const sku=String(r.m||'미분류'),v=String(r.v||'미분류'),mo=r.d.slice(0,7);
   if(!skuMap.has(sku))skuMap.set(sku,{name:sku,month:Object.create(null),aligned:Object.create(null),vendors:new Map()});
@@ -154,12 +204,12 @@ function matrixStyle(){
  .sku-v115-summary small{flex-basis:100%;color:#90b1c8;font-size:10px}`;
  document.head.appendChild(s);
 }
-function renderSkuMatrix(t,vendor,group){
+function renderSkuMatrix(t,vendor,group,index){
  matrixStyle();const singleVendor=!!vendor&&vendor!=='백제약품 전체 합계'&&vendor!=='권역 외 업체';
  t.classList.add('sku-v115-matrix');t.classList.toggle('sku-v115-single',singleVendor);
  if(lastSkuMatrixGroup!==group){cSort='now';cDir='desc';lastSkuMatrixGroup=group}
  if(singleVendor&&cSort==='vendor'){cSort='now';cDir='desc'}
- const {hist,show,last}=history(),r=buildSkuMatrix(all(),group,vendor,cur(),hist,show,last);
+ const {hist,show,last}=history(index),r=buildSkuMatrix(index.byGroup.get(group)?.rows||EMPTY_ROWS,vendor,cur(),hist,show,last);
  const mm=String(Number(cur().slice(5,7)))+'월 누계',prevName=last?String(Number(last.slice(5,7)))+'월 마감':'직전월';
  const monthHeads=show.map(m=>m.slice(2).replace('-','.'));
  const headings=singleVendor?['SKU / 상세 제품명',...monthHeads,'확정월 평균',mm,'기준일 기대 누계','전월 동일시점 대비 증감','확정월 동일시점 대비 증감','기준일 대비 매출률']:['SKU / 상세 제품명','업체',...monthHeads,'확정월 평균',mm,'기준일 기대 누계','전월 동일시점 대비 증감','확정월 동일시점 대비 증감','기준일 대비 매출률'];
@@ -227,12 +277,12 @@ function skuScope(group,vendor){
  return `<div class="sf-sku-scope"><span>제품군<strong>${X(group||'전체 제품군')}</strong></span><span>업체<strong>${X(vendor||'전체 업체')}</strong></span><span>조회월<strong>${X(cur().replace('-','.'))}</strong></span><span class="sf-sku-linked">상·하단 제품군 연동</span>${group?'<button type="button" class="sf-sku-clear" data-sf-clear-product>전체 제품군 보기</button>':''}</div>`;
 }
 
-function renderSku(){
+function renderSku(index=salesIndex()){
  const t=$('#v51CompareTable');if(!t||!cur())return;
  const vendor=$('#v51Vendor')?.value||'',group=$('#v51Group')?.value||'';
- if(group){renderSkuMatrix(t,vendor,group);return}
+ if(group){renderSkuMatrix(t,vendor,group,index);return}
  window.__SF_SKU_VENDOR_EXPORT=null;t.classList.remove('sku-v115-matrix','sku-v115-single');
- const r=metrics('m',vendor,group),mm=String(Number(cur().slice(5,7)))+'월 누계';
+ const r=metrics('m',vendor,group,index),mm=String(Number(cur().slice(5,7)))+'월 누계';
  sortRows(r.rows,cSort,cDir);
  const summary=skuSummary(t);
  if(summary){summary.hidden=false;summary.innerHTML=skuScope('',vendor)+`<span>전체 SKU<strong>${r.rows.length}종</strong></span><span>표시 SKU<strong>${Math.min(r.rows.length,180)}종</strong></span><small>${r.rows.length>180?'현재 정렬 기준 상위 180종을 표시합니다. ':''}과거 월 전체 실적 → 현재 누계 → 동일 수금 진행위치 비교 순입니다. 단위: 억 원.</small>`}
@@ -240,12 +290,18 @@ function renderSku(){
  t.innerHTML=`<thead><tr>${th('name','SKU / 상세 제품명',cSort,cDir)}${r.show.map(m=>th('m:'+m,m.slice(2).replace('-','.'),cSort,cDir)).join('')}${th('avg','확정월 평균',cSort,cDir)}${currentTh('now',mm,cSort,cDir)}${th('expected','기준일 기대 누계',cSort,cDir)}${th('prevDiff','전월 동일시점 대비 증감',cSort,cDir)}${th('avgDiff','확정월 동일시점 대비 증감',cSort,cDir)}${th('rate','기준일 대비 매출률',cSort,cDir)}</tr></thead><tbody>${body}</tbody>`;
  fitHistory(t,r.show.length)
 }
-function mboValue(){const g=$('#groupTarget')?.value||'',raw=String($('#groupMbo')?.value??'').trim().replace(',','.'),z=state(),o=(z.gmbo||z.groupMbo||{})[cur()]||{};const saved=o[g];let v=/^\d+(?:\.\d+)?$/.test(raw)?Number(raw):(saved!=null&&String(saved).trim()!==''?Number(saved):null);return{g,v:v!=null&&Number.isFinite(v)?v:null}}
-function saveMbo(){const input=$('#groupMbo'),g=$('#groupTarget')?.value,m=cur();if(!input||!g||!m)return;const raw=String(input.value||'').trim().replace(',','.');if(!/^\d+(?:\.\d+)?$/.test(raw))return;const z=state();z.gmbo=z.gmbo||z.groupMbo||{};z.gmbo[m]=z.gmbo[m]||{};z.gmbo[m][g]=Number(raw);saveState(z);window.dispatchEvent(new Event('sf-group-mbo-committed'));renderMboSummary();renderMbo()}
-function renderMboSummary(){const t=$('#groupTargetTable'),panel=t?.closest('section.panel');if(!panel)return;let box=panel.querySelector('.v61-mbo-summary');if(!box){box=document.createElement('div');box.className='v61-mbo-summary';const controls=panel.querySelector('.controls');controls?.insertAdjacentElement('afterend',box)}const z=state(),o=(z.gmbo||z.groupMbo||{})[cur()]||{},es=Object.entries(o).filter(([g,v])=>g&&v!=null&&String(v).trim()!==''&&Number.isFinite(Number(v))).sort((a,b)=>a[0].localeCompare(b[0],'ko'));box.innerHTML=`<span class="label">입력된 제품군 MBO</span>${es.length?es.map(([g,v])=>`<span class="v61-chip">${X(g)} <b>${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}억</b></span>`).join(''):'<span class="label">없음</span>'}`}
-function renderMbo(){
+function mboValue(z){const g=$('#groupTarget')?.value||'',raw=String($('#groupMbo')?.value??'').trim().replace(',','.'),o=(z.gmbo||z.groupMbo||{})[cur()]||{};const saved=o[g];let v=/^\d+(?:\.\d+)?$/.test(raw)?Number(raw):(saved!=null&&String(saved).trim()!==''?Number(saved):null);return{g,v:v!=null&&Number.isFinite(v)?v:null}}
+function saveMbo(){
+ const input=$('#groupMbo'),g=$('#groupTarget')?.value,m=cur();if(!input||!g||!m)return;
+ const raw=String(input.value||'').trim().replace(',','.');if(!/^\d+(?:\.\d+)?$/.test(raw))return;
+ const z=state(),gmbo=z.gmbo||z.groupMbo||{};
+ saveState({...z,gmbo:{...gmbo,[m]:{...gmbo[m],[g]:Number(raw)}}});
+ window.dispatchEvent(new Event('sf-group-mbo-committed'));renderMboSummary();renderMbo();
+}
+function renderMboSummary(z=state()){const t=$('#groupTargetTable'),panel=t?.closest('section.panel');if(!panel)return;let box=panel.querySelector('.v61-mbo-summary');if(!box){box=document.createElement('div');box.className='v61-mbo-summary';const controls=panel.querySelector('.controls');controls?.insertAdjacentElement('afterend',box)}const o=(z.gmbo||z.groupMbo||{})[cur()]||{},es=Object.entries(o).filter(([g,v])=>g&&v!=null&&String(v).trim()!==''&&Number.isFinite(Number(v))).sort((a,b)=>a[0].localeCompare(b[0],'ko'));box.innerHTML=`<span class="label">입력된 제품군 MBO</span>${es.length?es.map(([g,v])=>`<span class="v61-chip">${X(g)} <b>${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}억</b></span>`).join(''):'<span class="label">없음</span>'}`}
+function renderMbo(index,z=state()){
  const t=$('#groupTargetTable'),input=$('#groupMbo');if(!t||!input||!cur())return;
- const {g,v}=mboValue();
+ const {g,v}=mboValue(z);
  if(!g||g===ALL_PRODUCTS||v==null){
   if(g&&v==null&&window.__sfRenderGroupWithoutMbo?.())return;
   for(const id of ['groupCurrent','groupRate','groupNeed']){const el=$('#'+id);if(el){el.textContent='—';el.classList.remove('good','warn','bad','info','sf-tone-positive','sf-tone-caution','sf-tone-warning','sf-tone-negative','sf-tone-info');el.classList.add('sf-tone-neutral')}}
@@ -254,19 +310,23 @@ function renderMbo(){
  }
  for(const id of ['groupCurrent','groupRate','groupNeed'])$('#'+id)?.classList.remove('sf-tone-neutral');
  delete t.dataset.noMboFinal;
- const target=v*1e8,{hist,show,last}=history(),allRows=all(),maps={},pace=paceFor(hist),stageMaps={};
- [...show,cur()].forEach(m=>maps[m]=map(allRows.filter(r=>r.d?.slice(0,7)===m&&r.g===g),'v'));
- if(pace)show.forEach(m=>stageMaps[m]=map(allRows.filter(r=>r.d?.slice(0,7)===m&&r.g===g&&r.d<=pace.cuts[m]),'v'));
- const monthMap=m=>map(allRows.filter(r=>r.d?.slice(0,7)===m&&r.g===g),'v'),avg={},now=maps[cur()]||{};
- KEY.forEach(k=>avg[k]=hist.length?hist.reduce((s,m)=>s+N(monthMap(m)[k]),0)/hist.length:0);
- const outsideHist=hist.map(m=>{const mp=monthMap(m);return Object.keys(mp).filter(k=>!KEY.includes(k)).reduce((s,k)=>s+N(mp[k]),0)}),outsideAvg=outsideHist.length?outsideHist.reduce((a,b)=>a+b,0)/outsideHist.length:0,outsideNow=Object.keys(now).filter(k=>!KEY.includes(k)).reduce((s,k)=>s+N(now[k]),0),outsidePrev=last?Object.keys(maps[last]||{}).filter(k=>!KEY.includes(k)).reduce((s,k)=>s+N(maps[last]?.[k]),0):0,curTotal=KEY.reduce((s,k)=>s+N(now[k]),0)+outsideNow,totalNeed=Math.max(0,target-curTotal),closed=closedSet(),open=KEY.filter(k=>!closed.has(k)),openAvg=open.reduce((s,k)=>s+N(avg[k]),0);
+ index=index||salesIndex(z);
+ const selected=cur(),target=v*1e8,{hist,show,last}=history(index,selected),maps={},pace=paceFor(hist),stageMaps={};
+ const byMonth=index.byGroup.get(g)?.byMonth;
+ for(const m of [...show,selected]){
+  const {totals,aligned}=sumRows(byMonth?.get(m)||EMPTY_ROWS,'v',m<selected?pace?.cuts[m]:undefined);
+  maps[m]=totals;stageMaps[m]=aligned;
+ }
+ const avg={},now=maps[selected];
+ KEY.forEach(k=>avg[k]=hist.length?hist.reduce((s,m)=>s+N(maps[m][k]),0)/hist.length:0);
+ const outsideMapValue=mp=>Object.keys(mp||{}).filter(k=>!KEY.includes(k)).reduce((s,k)=>s+N(mp[k]),0);
+ const outsideMo=Object.fromEntries(show.map(m=>[m,outsideMapValue(maps[m])]));
+ const outsideAvg=hist.length?hist.reduce((s,m)=>s+outsideMo[m],0)/hist.length:0,outsideNow=outsideMapValue(now),outsidePrev=outsideMo[last]||0,curTotal=KEY.reduce((s,k)=>s+N(now[k]),0)+outsideNow,totalNeed=Math.max(0,target-curTotal),closed=closedSet(),open=KEY.filter(k=>!closed.has(k)),openAvg=open.reduce((s,k)=>s+N(avg[k]),0);
  let remain=totalNeed;const alloc={};
  open.forEach((k,i)=>{const weight=openAvg?N(avg[k])/openAvg:1/Math.max(1,open.length);const add=i===open.length-1?remain:Math.round(totalNeed*weight);alloc[k]=add;if(i!==open.length-1)remain-=add});
  let rows=KEY.map(k=>{const mo=Object.fromEntries(show.map(m=>[m,N(maps[m]?.[k])])),current=N(now[k]),prev=N(maps[last]?.[k]),isClosed=closed.has(k),add=isClosed?0:N(alloc[k]),expected=pace?hist.reduce((s,m)=>s+N(stageMaps[m]?.[k]),0)/hist.length:null,prevStage=pace?N(stageMaps[last]?.[k]):null;return{name:k,months:mo,avg:N(avg[k]),now:current,prev,expected,prevDiff:prevStage==null?null:current-prevStage,avgDiff:expected==null?null:current-expected,rate:expected>0?current/expected:null,target:current+add,need:add,closed:isClosed}});
  sortRows(rows,mSort,mDir);
- const outsideMo=Object.fromEntries(show.map(m=>{const mp=maps[m]||{};return[m,Object.keys(mp).filter(k=>!KEY.includes(k)).reduce((s,k)=>s+N(mp[k]),0)]}));
  const current=$('#groupCurrent'),rate=$('#groupRate'),need=$('#groupNeed');if(current)current.textContent=W(curTotal)+'억';if(rate)rate.textContent=target?`${(curTotal/target*100).toFixed(1)}%`:'-';if(need)need.textContent=W(totalNeed)+'억';
- const outsideMapValue=mp=>Object.keys(mp||{}).filter(k=>!KEY.includes(k)).reduce((s,k)=>s+N(mp[k]),0);
  const outsideExpected=pace?hist.reduce((s,m)=>s+outsideMapValue(stageMaps[m]),0)/hist.length:null,outsidePrevStage=pace?outsideMapValue(stageMaps[last]):null;
  const stageTotal=m=>Object.values(stageMaps[m]||{}).reduce((s,v)=>s+N(v),0);
  const totalExpected=pace?hist.reduce((s,m)=>s+stageTotal(m),0)/hist.length:null,prevStageTotal=pace?stageTotal(last):null;
@@ -276,13 +336,13 @@ function renderMbo(){
  fitHistory(t,show.length)
 }
 function context(){const sec=$('#groupTable')?.closest('section.panel');if(!sec)return;sec.querySelectorAll('.v52-group-banner,.v54-context,.v58-context,.v61-context').forEach((x,i)=>{if(i||!x.classList.contains('v61-context'))x.remove()});let b=sec.querySelector('.v61-context');if(!b){b=document.createElement('div');b.className='v61-context';sec.querySelector('.head')?.insertAdjacentElement('afterend',b)}const name=upperVendor||sec.querySelector('.scope-badge strong')?.textContent?.trim()||'전체 업체';b.innerHTML=`<span>선택 업체</span><strong>${X(name)}</strong><span class="arr">→</span><span>제품군 월별 현황</span>`}
-function run(){if(busy)return;busy=true;try{if(!productSelectionReady)restoreProductSelection('init');style();renderGroup();renderSku();renderMboSummary();renderMbo();context()}finally{busy=false}}
+function run(){if(busy)return;busy=true;try{if(!productSelectionReady)restoreProductSelection('init');const z=state(),index=salesIndex(z);style();renderGroup(index);renderSku(index);renderMboSummary(z);renderMbo(index,z);context()}finally{busy=false}}
 document.addEventListener('click',e=>{const clear=e.target.closest('[data-sf-clear-product]');if(clear){e.preventDefault();syncProductSelection('','clear');setTimeout(run,20);return}const b=e.target.closest('#v51CompareTable [data-sku-v115-fold]');if(b){e.preventDefault();e.stopPropagation();const t=$('#v51CompareTable'),id=b.dataset.skuV115Fold,collapsed=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!collapsed));b.textContent=collapsed?'▸':'▾';const folds=new Map([...t.querySelectorAll('[data-sku-v115-fold]')].map(x=>[x.dataset.skuV115Fold,x.getAttribute('aria-expanded')==='true']));t.querySelectorAll('tr[data-sku-v121-ancestors]').forEach(x=>{x.hidden=x.dataset.skuV121Ancestors.split(' ').some(parent=>!folds.get(parent))});return}const gh=e.target.closest('#groupTable th[data-v61]');if(gh){e.preventDefault();e.stopPropagation();const k=gh.dataset.v61;if(gSort===k)gDir=gDir==='asc'?'desc':'asc';else{gSort=k;gDir=k==='name'?'asc':'desc'}renderGroup();return}const sh=e.target.closest('#v51CompareTable th[data-v61]');if(sh){const k=sh.dataset.v61;if(cSort===k)cDir=cDir==='asc'?'desc':'asc';else{cSort=k;cDir=k==='name'?'asc':'desc'}renderSku();return}const mh=e.target.closest('#groupTargetTable th[data-v61]');if(mh){const k=mh.dataset.v61;if(mSort===k)mDir=mDir==='asc'?'desc':'asc';else{mSort=k;mDir=k==='name'?'asc':'desc'}renderMbo();return}const vr=e.target.closest('#vendorTable tr');if(vr){const reset=vr.matches('[data-v39-reset],.v39-overview,.overview-row')||e.target.closest('.overview-cta');upperVendor=reset?'':(vr.dataset.v39||vr.dataset.v||vr.cells?.[1]?.innerText?.trim()||'');setTimeout(()=>{renderGroup();context()},20)}const gr=e.target.closest('#groupTable [data-v61-group]');if(gr){window.__sfPopulateSkuGroups?.();syncProductSelection(gr.dataset.v61Group||'','row');setTimeout(run,20)}},true);
 document.addEventListener('input',e=>{if(e.target?.id==='groupMbo'){clearTimeout(inputTm);inputTm=setTimeout(saveMbo,220)}},true);
 document.addEventListener('change',e=>{const id=e.target?.id;if(id==='month'){clearTimeout(inputTm);setTimeout(()=>{restoreProductSelection('month');run()},20)}else if(id==='groupTarget'||id==='v51Group'){if(syncingProductSelection)return;syncProductSelection(e.target.value,id);setTimeout(run,20)}else if(id==='v51Vendor'){setTimeout(run,20)}},true);
 document.addEventListener('blur',e=>{if(e.target?.id==='groupMbo'){let v=String(e.target.value||'').trim().replace(',','.');if(/^\d+\.$/.test(v))e.target.value=v.slice(0,-1);saveMbo()}},true);
-window.addEventListener('sf-vendor-close-change',()=>setTimeout(renderMbo,20));window.addEventListener('sf-data-refreshed',()=>{allCache=null;allSig='';setTimeout(()=>{restoreProductSelection('refresh');run()},20)});
-window.addEventListener('sf-vendor-scope-change',e=>{upperVendor=e.detail?.vendor||'';window.__SF_UPPER_VENDOR=upperVendor;syncSkuVendor(upperVendor);setTimeout(()=>{renderGroup();context();renderSku()},30)});
+window.addEventListener('sf-vendor-close-change',()=>setTimeout(renderMbo,20));window.addEventListener('sf-data-refreshed',()=>{indexCache=null;setTimeout(()=>{restoreProductSelection('refresh');run()},20)});
+window.addEventListener('sf-vendor-scope-change',e=>{upperVendor=e.detail?.vendor||'';window.__SF_UPPER_VENDOR=upperVendor;syncSkuVendor(upperVendor);setTimeout(()=>{const index=salesIndex();renderGroup(index);context();renderSku(index)},30)});
 window.addEventListener('sf-detail-shell-ready',()=>{restoreProductSelection();syncSkuVendor($('#v51Vendor')?.value||'');setTimeout(run,20)});
 setTimeout(run,80);setTimeout(run,500);window.__SF_V61_READY=true;window.__SF_V73_READY=true;window.dispatchEvent(new Event('sf-v61-ready'));
 })();

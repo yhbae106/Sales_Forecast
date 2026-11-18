@@ -7,20 +7,42 @@ const W=v=>(N(v)/1e8).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFra
 const E1=v=>Math.round((N(v)/1e8)*10)/10;
 const PC=v=>Number.isFinite(v)?(v*100).toFixed(1)+'%':'-';
 const X=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let renderTimer=null,dataCache=null,dataSig='';
+const EMPTY_ROWS=[],EMPTY_MONTH={total:0,daily:{},latest:''};
+let renderTimer=null,dataCache=null,stateSource,stateCache={};
 
-function state(){try{return JSON.parse(localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}')}catch(e){return{}}}
+function state(){
+  try{
+    const raw=localStorage.getItem(STORE)||localStorage.getItem('sales_forecast_v15')||'{}';
+    if(raw!==stateSource){stateSource=raw;stateCache={};stateCache=JSON.parse(raw)||{}}
+    return stateCache;
+  }catch(e){return{}}
+}
 function closeState(){let local={};try{local=JSON.parse(localStorage.getItem(CLOSE_KEY)||'{}')}catch(e){}const shared=window.__SF_SHARED_CLOSED;return shared&&typeof shared==='object'?{...local,...shared}:local}
-function uploads(){const z=state(),a=z.up||z.uploadRows||z.uploads;return Array.isArray(a)&&a.length?a:(window.__SF_SHARED_UPLOADS||[])}
-function data(){const up=uploads(),seedRaw=window.SEED_DATA?.dailyRecords||[],sig=seedRaw.length+'|'+up.length+'|'+(window.__SF_SHARED_LAST||'');if(dataCache&&sig===dataSig)return dataCache;const normUp=up.map(r=>({d:r.d||r.date,v:r.v||r.vendor||'',g:r.g||r.productGroup||'미분류',m:r.m||r.material||'미분류',a:N(r.a??r.amount)})),rep=new Set(normUp.map(r=>r.d)),all=seedRaw.map(r=>({d:r.date,v:r.vendor||'',g:r.productGroup||'미분류',m:r.material||'미분류',a:N(r.amount)})).filter(r=>r.d&&!rep.has(r.d)).concat(normUp),byMonth={};all.forEach(r=>{const m=r.d?.slice(0,7);if(m)(byMonth[m]||(byMonth[m]=[])).push(r)});dataCache={all,byMonth,months:Object.keys(byMonth).sort()};dataSig=sig;return dataCache}
+function data(z=state()){
+  const seed=window.SEED_DATA?.dailyRecords||EMPTY_ROWS,local=z.up||z.uploadRows||z.uploads;
+  const uploads=Array.isArray(local)&&local.length?local:(window.__SF_SHARED_UPLOADS||EMPTY_ROWS);
+  if(dataCache?.seed===seed&&dataCache.uploads===uploads)return dataCache;
+
+  const replacedDates=new Set(uploads.map(r=>r.d||r.date)),byMonth=new Map();
+  function add(d,v,g,a){
+    const key=d?.slice(0,7);
+    if(!key)return;
+    if(!byMonth.has(key))byMonth.set(key,{rows:[],total:0,daily:{},latest:'',entities:null});
+    const month=byMonth.get(key),amount=N(a)||0;
+    month.rows.push({d,v,g,a:amount});
+    month.total+=amount;
+    month.daily[d]=(month.daily[d]||0)+amount;
+    if(d>month.latest)month.latest=d;
+  }
+  for(const r of seed)if(!replacedDates.has(r.date))add(r.date,r.vendor||'',r.productGroup||'미분류',r.amount);
+  for(const r of uploads)add(r.d||r.date,r.v||r.vendor||'',r.g||r.productGroup||'미분류',r.a??r.amount);
+  dataCache={seed,uploads,byMonth,months:[...byMonth.keys()].sort()};
+  return dataCache;
+}
 const cur=()=>$('#month')?.value||'';
-function monthRows(m){return data().byMonth[m]||[]}
-function months(){return data().months}
-function total(m){return monthRows(m).reduce((s,r)=>s+N(r.a),0)}
-function daily(m){const o={};monthRows(m).forEach(r=>{o[r.d]=(o[r.d]||0)+N(r.a)});return o}
-function latest(m){return Object.keys(daily(m)).sort().at(-1)||''}
-function asOfDate(m){const salesLast=latest(m);return window.SFDataReliability?.sourceAsOfDate(window.__sfSharedMeta||{},m,salesLast)||salesLast}
-function cum(m,d){let s=0;for(const[x,v]of Object.entries(daily(m)))if(x<=d)s+=N(v);return s}
+const mboValue=(z,month)=>z.mbo?.[month]??$('#mbo')?.value;
+function asOfDate(m,salesLast){return window.SFDataReliability?.sourceAsOfDate(window.__sfSharedMeta||{},m,salesLast)||salesLast}
+function cum(daily,d){let s=0;for(const[x,v]of Object.entries(daily))if(x<=d)s+=N(v);return s}
 function holidaySet(m){const out=new Set(),kr=window.SEED_DATA?.krHolidays2026||{},custom=window.SEED_DATA?.customHolidaysByMonth||{};Object.keys(kr).forEach(d=>{if(d.slice(0,7)===m)out.add(d)});const x=custom[m];if(Array.isArray(x))x.forEach(d=>out.add(String(d)));else if(x&&typeof x==='object')Object.keys(x).forEach(d=>out.add(d));return out}
 function biz(m){const[y,mo]=m.split('-').map(Number),a=[],hol=holidaySet(m);for(let d=new Date(Date.UTC(y,mo-1,1));d.getUTCMonth()===mo-1;d.setUTCDate(d.getUTCDate()+1)){const wd=d.getUTCDay(),ds=y+'-'+String(mo).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');if(wd!==0&&wd!==6&&!hol.has(ds))a.push(ds)}return a}
 function prevMonth(m){const[y,mo]=String(m||'').split('-').map(Number),d=new Date(Date.UTC(y,mo-2,1));return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')}
@@ -29,19 +51,33 @@ function inferredBounds(m,hist,sched){const b=biz(m),den=Math.max(1,b.length-1),
 function bounds(m,hist,sched){const s=sched[m]||[],a=schedIndex(m,s[0]),c=schedIndex(m,s[1]);return a!=null&&c!=null&&c>a?[a,c]:inferredBounds(m,hist,sched)}
 function phase(m,date,bnd){const b=biz(m),i=Math.max(0,b.filter(x=>x<=date).length-1),a=bnd[0],c=bnd[1];return i<=a?[0,a?i/a:0]:i<=c?[1,(i-a)/Math.max(1,c-a)]:[2,(i-c)/Math.max(1,b.length-1-c)]}
 function eq(m,ph,bnd){const b=biz(m),a=bnd[0],c=bnd[1];let i=ph[0]===0?Math.round(a*ph[1]):ph[0]===1?Math.round(a+(c-a)*ph[1]):Math.round(c+(b.length-1-c)*ph[1]);return b[Math.max(0,Math.min(b.length-1,i))]||''}
-function entityMap(m,kind,cut){const o={};monthRows(m).forEach(r=>{if(cut&&r.d>cut)return;const k=kind==='vendor'?r.v:r.g;if(k)o[k]=(o[k]||0)+N(r.a)});return o}
+function entitiesAt(month,cut){
+  if(!month)return{vendors:{},groups:{}};
+  if(month.entities&&month.entities.cut===cut)return month.entities;
+  const vendors={},groups={};
+  for(const r of month.rows){
+    if(cut&&r.d>cut)continue;
+    if(r.v)vendors[r.v]=(vendors[r.v]||0)+r.a;
+    if(r.g)groups[r.g]=(groups[r.g]||0)+r.a;
+  }
+  month.entities={cut,vendors,groups};
+  return month.entities;
+}
 function classify(now,expected){const diff=now-expected,ratio=expected?now/expected:(now>0?9:0),material=Math.max(now,expected);if(material<3e7)return null;if(ratio<.70&&diff<-2e7)return{signal:'부진',tone:'bad',score:Math.abs(diff)*(1+(.70-ratio))};if(ratio>1.45&&diff>2e7)return{signal:'급증',tone:'up',score:Math.abs(diff)*(1+(ratio-1.45)*.4)};if(ratio<.85&&diff<-1e7)return{signal:'주의',tone:'warn',score:Math.abs(diff)*.7};if(ratio>1.25&&diff>1e7)return{signal:'증가',tone:'up',score:Math.abs(diff)*.6};return null}
-function analyze(){
-  const m=cur(),z=state(),salesLast=latest(m),last=asOfDate(m),allMonths=months(),displayHist=allMonths.filter(x=>x<m&&total(x)>0),hist=displayHist.slice(-5),sched=z.sched||window.__sfSharedMeta?.sched||{};
+function analyze(z=state(),index=data(z)){
+  const m=cur(),summary=month=>index.byMonth.get(month)||EMPTY_MONTH,total=month=>summary(month).total;
+  const salesLast=summary(m).latest,last=asOfDate(m,salesLast),allMonths=index.months,displayHist=allMonths.filter(x=>x<m&&total(x)>0),hist=displayHist.slice(-5),sched=z.sched||window.__sfSharedMeta?.sched||{};
   if(!m||!last||!hist.length)return null;
   const ph=phase(m,last,bounds(m,hist,sched)),cuts={};hist.forEach(h=>cuts[h]=eq(h,ph,bounds(h,hist,sched)));
-  const historySamples=hist.map(h=>{const close=total(h),booked=cum(h,cuts[h]),p=close>0?booked/close:0;return{month:h,close,progress:p,remaining:Math.max(0,close-booked)}}).filter(s=>Number.isFinite(s.progress)&&s.progress>=0&&s.progress<1.4);
+  const historySamples=hist.map(h=>{const {total:close,daily}=summary(h),booked=cum(daily,cuts[h]),p=close>0?booked/close:0;return{month:h,close,progress:p,remaining:Math.max(0,close-booked)}}).filter(s=>Number.isFinite(s.progress)&&s.progress>=0&&s.progress<1.4);
   const progressVals=historySamples.map(s=>s.progress),progress=progressVals.length?progressVals.reduce((a,b)=>a+b,0)/progressVals.length:0;
-  const current=total(m),mboEok=z.mbo?.[m]??$('#mbo')?.value,mbo=N(mboEok)*1e8,closed=new Set(closeState()[m]||[]),closedCount=KEY.filter(name=>closed.has(name)).length,allClosed=KEY.every(name=>closed.has(name)),mboMetDisplay=mbo?E1(current)>=E1(mbo):false,recent3Months=hist.slice(-3),recent3CloseAvg=recent3Months.length?recent3Months.reduce((s,x)=>s+total(x),0)/recent3Months.length:0,pm=prevMonth(m),pmMbo=N(z.mbo?.[pm])*1e8,prevCloseRatio=pmMbo>0?total(pm)/pmMbo:0,bcur=biz(m),elapsedBiz=Math.max(1,bcur.filter(d=>d<=last).length),boundary=window.__sfBoundaryAdjust?.({month:m,date:last,current,mbo,recentAvg:recent3CloseAvg,rawProgress:progress,histProgress:progressVals,historySamples,elapsedBiz,totalBiz:bcur.length,prevCloseRatio,prevMonthClose:total(pm),allClosed}),rawForecast=progress>0?current/progress:null,forecast=allClosed?current:(boundary?.forecast??rawForecast),forecastRate=mbo&&forecast!=null?forecast/mbo:null;
+  const current=total(m),mboEok=mboValue(z,m),mbo=N(mboEok)*1e8,closed=new Set(closeState()[m]||[]),closedCount=KEY.filter(name=>closed.has(name)).length,allClosed=KEY.every(name=>closed.has(name)),mboMetDisplay=mbo?E1(current)>=E1(mbo):false,recent3Months=hist.slice(-3),recent3CloseAvg=recent3Months.length?recent3Months.reduce((s,x)=>s+total(x),0)/recent3Months.length:0,pm=prevMonth(m),pmMbo=N(z.mbo?.[pm])*1e8,prevCloseRatio=pmMbo>0?total(pm)/pmMbo:0,bcur=biz(m),elapsedBiz=Math.max(1,bcur.filter(d=>d<=last).length),boundary=window.__sfBoundaryAdjust?.({month:m,date:last,current,mbo,recentAvg:recent3CloseAvg,rawProgress:progress,histProgress:progressVals,historySamples,elapsedBiz,totalBiz:bcur.length,prevCloseRatio,prevMonthClose:total(pm),allClosed}),rawForecast=progress>0?current/progress:null,forecast=allClosed?current:(boundary?.forecast??rawForecast),forecastRate=mbo&&forecast!=null?forecast/mbo:null;
   const remain=mbo?Math.max(0,mbo-current):0,remainingBiz=allClosed?0:bcur.filter(d=>d>last).length,needDaily=allClosed?0:(remain>0?(remainingBiz?remain/remainingBiz:remain):0),forecastVsRecent3=recent3CloseAvg&&forecast!=null?forecast/recent3CloseAvg:null;
-  const curV=entityMap(m,'vendor',last),histV={};hist.forEach(h=>histV[h]=entityMap(h,'vendor',cuts[h]));
+  const {vendors:curV,groups:curG}=entitiesAt(index.byMonth.get(m),last);
+  const histV={},histG={};
+  for(const h of hist){const {vendors,groups}=entitiesAt(index.byMonth.get(h),cuts[h]);histV[h]=vendors;histG[h]=groups}
   const vendorStatus=KEY.map(name=>{const expected=hist.reduce((s,h)=>s+N(histV[h]?.[name]),0)/hist.length,now=N(curV[name]),q=classify(now,expected),isClosed=closed.has(name);return{name,region:REGION[name]||'',expected,now,diff:now-expected,ratio:expected?now/expected:0,signal:isClosed?'마감완료':(q?.signal||'정상'),tone:isClosed?'closed':(q?.tone||'good'),closed:isClosed}});
-  const curG=entityMap(m,'group',last),histG={};hist.forEach(h=>histG[h]=entityMap(h,'group',cuts[h]));const names=[...new Set(Object.keys(curG).concat(hist.flatMap(h=>Object.keys(histG[h]||{}))))];
+  const names=[...new Set(Object.keys(curG).concat(hist.flatMap(h=>Object.keys(histG[h]||{}))))];
   const groupIssues=names.map(name=>{const expected=hist.reduce((s,h)=>s+N(histG[h]?.[name]),0)/hist.length,now=N(curG[name]),q=classify(now,expected);return q?{name,expected,now,diff:now-expected,ratio:expected?now/expected:0,signal:q.signal,tone:q.tone,score:q.score}:null}).filter(Boolean).sort((a,b)=>b.score-a.score);
   let closeSignal='관찰',closeTone='neutral';
   if(allClosed){if(mbo&&!mboMetDisplay){closeSignal='마감완료 · MBO 미달';closeTone='warn'}else if(mboMetDisplay){closeSignal='MBO 달성';closeTone='good'}else{closeSignal='마감완료';closeTone='good'}}
@@ -67,8 +103,8 @@ function toneClass(t){return t==='good'?'sf-radar-good':t==='bad'?'sf-radar-bad'
 function vendorTable(items){return'<table><thead><tr><th>권역</th><th>업체</th><th>현재</th><th>동일위치 기준</th><th>편차</th><th>수준</th><th>상태</th></tr></thead><tbody>'+items.map(x=>'<tr><td>'+X(x.region)+'</td><td><button type="button" class="sf-radar-link" data-radar-vendor="'+X(x.name)+'">'+X(x.name)+'</button></td><td>'+W(x.now)+'</td><td>'+W(x.expected)+'</td><td class="'+(x.diff>=0?'sf-radar-up':'sf-radar-bad')+'">'+(x.diff>=0?'+':'')+W(x.diff)+'</td><td class="'+toneClass(x.tone)+'">'+PC(x.ratio)+'</td><td><span class="sf-radar-signal '+toneClass(x.tone)+'">'+x.signal+'</span></td></tr>').join('')+'</tbody></table>'}
 function issueTable(items){if(!items.length)return'<div class="sf-radar-empty">현재 기준 우선 확인 이슈가 없습니다.</div>';return'<table><thead><tr><th>대상</th><th>신호</th><th>현재</th><th>동일위치 기준</th><th>편차</th><th>수준</th></tr></thead><tbody>'+items.map(x=>'<tr><td><button type="button" class="sf-radar-link" data-radar-group="'+X(x.name)+'">'+X(x.name)+'</button></td><td><span class="sf-radar-signal '+toneClass(x.tone)+'">'+x.signal+'</span></td><td>'+W(x.now)+'</td><td>'+W(x.expected)+'</td><td class="'+(x.diff>=0?'sf-radar-up':'sf-radar-bad')+'">'+(x.diff>=0?'+':'')+W(x.diff)+'</td><td class="'+toneClass(x.tone)+'">'+PC(x.ratio)+'</td></tr>').join('')+'</tbody></table>'}
 
-function trendSvg(a){
-  const hist=a.displayHist?.length?a.displayHist:a.hist,vals=hist.map(m=>({m,v:total(m)})),forecast=a.forecast??a.current,showForecast=!a.allClosed&&forecast!=null&&Math.abs(forecast-a.current)>5e6,target=a.mbo||0,avg=a.recent3CloseAvg||0;
+function trendSvg(a,index=data()){
+  const hist=a.displayHist?.length?a.displayHist:a.hist,vals=hist.map(m=>({m,v:index.byMonth.get(m)?.total||0})),forecast=a.forecast??a.current,showForecast=!a.allClosed&&forecast!=null&&Math.abs(forecast-a.current)>5e6,target=a.mbo||0,avg=a.recent3CloseAvg||0;
   const rolling=vals.map((p,i)=>{const q=vals.slice(Math.max(0,i-2),i+1);return q.reduce((s,x)=>s+x.v,0)/Math.max(1,q.length)});
   const refs=[...vals.map(x=>x.v),...rolling,a.current,avg,target,showForecast?forecast:0].filter(v=>Number.isFinite(v)&&v>0),maxV=Math.max(1,...refs)*1.14,w=Math.max(980,(vals.length+1)*132),h=296,padL=58,padR=28,padT=28,padB=42,plotH=h-padT-padB,plotW=w-padL-padR,n=vals.length+1,step=plotW/Math.max(1,n),x=i=>padL+step*i+step/2,y=v=>padT+plotH-(Math.max(0,v)/maxV)*plotH,label=v=>W(v)+'억',baseY=y(0),barW=Math.min(56,step*.46),curX=x(n-1),curY=y(a.current),forecastY=y(forecast);
   const currentRate=target?a.current/target:null,forecastRate=target&&forecast!=null?forecast/target:null,deltaMbo=target?(E1(a.current)-E1(target))*1e8:null,deltaAvg=avg?(E1(a.current)-E1(avg))*1e8:null,sign=v=>v>0?'+':'',pct=v=>v==null?'-':(v*100).toFixed(v<.1?1:0)+'%',labelsClose=showForecast&&Math.abs(curY-forecastY)<24,clampLabel=v=>Math.max(12,Math.min(h-padB-5,v)),currentLabelY=clampLabel(labelsClose?(forecastY<curY?curY+17:curY-11):curY-12),forecastLabelY=clampLabel(labelsClose?(forecastY<curY?forecastY-10:forecastY+17):forecastY-10);
@@ -108,12 +144,24 @@ function trendSvg(a){
   return svg;
 }
 
-function render(){const a=analyze();if(!a)return;style();enhanceTrendStyle();let sec=$('#decisionRadarV93');if(!sec){sec=document.createElement('section');sec.id='decisionRadarV93';sec.className='panel sf-radar';const anchor=$('#kpiFlowSummary')||$('#cards');anchor?.insertAdjacentElement('afterend',sec)}if(!sec)return;const histText=a.hist.length?(a.hist[0].slice(2).replace('-','.')+'~'+a.hist.at(-1).slice(2).replace('-','.')):'-',forecastText=a.forecast==null?'-':W(a.forecast)+'억',rolloverNote=!a.allClosed&&a.boundary?.rolloverPotential>=.05e8?' · 300억 초과 예상 '+W(a.boundary.rolloverPotential)+'억 익월 이월 가능(추정)':'',closeSub=a.allClosed?(W(a.current)+'억 최종 · '+a.closedCount+'/'+KEY.length+' 업체 마감'+(a.mbo?' · MBO '+W(a.mbo)+'억 · '+PC(a.forecastRate):'')):(a.mbo?(forecastText+' 예상 · MBO '+W(a.mbo)+'억'+(a.forecastRate!=null?' · '+PC(a.forecastRate):'')+rolloverNote):(forecastText+' 예상 · MBO 미입력'+rolloverNote)),needSub=a.allClosed?'전체 관리업체 마감완료 · 추가 예상 0.0억':(a.remain>0?('잔여 '+a.remainingBiz+'영업일 · 남은 '+W(a.remain)+'억'):'MBO 이상 달성'),recent3Text=a.recent3Months?.length?(a.recent3Months[0].slice(2).replace('-','.')+'~'+a.recent3Months.at(-1).slice(2).replace('-','.')):'-',recentSub=a.forecastVsRecent3!=null?((a.allClosed?'최종 마감은':'현재 예상마감은')+' 최근 3개월 평균의 '+PC(a.forecastVsRecent3)+' · '+recent3Text):'최근 3개 확정월 마감 평균',trendRange=a.displayHist?.length?(a.displayHist[0].slice(2).replace('-','.')+'~'+a.displayHist.at(-1).slice(2).replace('-','.')):'-',trendSub=(a.allClosed?'전체 업체 마감완료 · 현재 누계가 최종 마감값입니다.':'확정월 마감 · 현재 누계/예상 마감 · 3M 이동평균 · 최근3M/MBO 기준')+' · 확정월 전체 '+trendRange+(a.displayHist?.length>5?' · 좌우 스크롤':'');
-sec.innerHTML='<div class="head"><div><h3>운영 판단 · 이슈 레이더</h3><p>월마감 가능성과 이상 징후를 먼저 확인한 뒤 아래 업체 → 제품군 → SKU로 내려갑니다. <span class="sf-radar-note">비교기준 '+histText+' 확정월 · 동일 수금 진행위치 · 업로드 기준 '+a.last+(a.salesLast&&a.salesLast!==a.last?' · 실적 '+a.salesLast+'까지':'')+'</span></p></div></div><div class="sf-radar-kpis"><div class="sf-radar-kpi"><div class="k">월마감 전망</div><div class="v '+toneClass(a.closeTone)+'">'+a.closeSignal+'</div><div class="s">'+closeSub+'</div></div><div class="sf-radar-kpi"><div class="k">남은 MBO</div><div class="v '+(a.remain>0?'sf-radar-warn':'sf-radar-good')+'">'+W(a.remain)+'억</div><div class="s">현재 '+W(a.current)+'억'+(a.mbo?' / 목표 '+W(a.mbo)+'억':'')+'</div></div><div class="sf-radar-kpi"><div class="k">잔여 영업일 필요 일평균</div><div class="v '+(a.allClosed?'sf-radar-closed':(a.remain>0?(a.remainingBiz===0?'sf-radar-bad':'sf-radar-warn'):'sf-radar-good'))+'">'+W(a.needDaily)+'억</div><div class="s">'+needSub+'</div></div><div class="sf-radar-kpi"><div class="k">최근 3개월 마감 평균</div><div class="v">'+W(a.recent3CloseAvg)+'억</div><div class="s">'+recentSub+'</div></div></div><div class="sf-radar-trend"><div class="sf-radar-trend-head"><div><b>월 마감 추세 · 현재/예상 포지션</b><span>'+trendSub+'</span></div><span class="sf-radar-trend-state '+(a.allClosed?'done':'live')+'">'+(a.allClosed?'마감 확정':'진행 중')+'</span></div>'+trendSvg(a)+'</div><div class="sf-radar-grid"><div class="sf-radar-box"><h4>관리업체 전체 현황 · 8개</h4><p>이슈 유무와 관계없이 8개 관리업체를 모두 표시합니다. 업체명을 누르면 2단계로 이동합니다.</p><div class="sf-radar-scroll">'+vendorTable(a.vendorStatus)+'</div></div><div class="sf-radar-box"><h4>제품군 이슈 · '+a.groupIssues.length+'건</h4><p>동일 진행위치 대비 변화와 금액 영향도를 반영하며, 모든 이슈 제품군을 스크롤로 확인합니다.</p><div class="sf-radar-scroll">'+issueTable(a.groupIssues)+'</div></div></div>';const trendScroll=sec.querySelector('.sf-radar-trend-scroll');if(trendScroll&&sec.dataset.trendViewMonth!==a.month){sec.dataset.trendViewMonth=a.month;requestAnimationFrame(()=>{trendScroll.scrollLeft=trendScroll.scrollWidth})}window.dispatchEvent(new Event('sf-radar-rendered'))}
+function render(){
+const z=state(),index=data(z),a=analyze(z,index);style();enhanceTrendStyle();let sec=$('#decisionRadarV93');if(!sec){sec=document.createElement('section');sec.id='decisionRadarV93';sec.className='panel sf-radar';const anchor=$('#kpiFlowSummary')||$('#cards');anchor?.insertAdjacentElement('afterend',sec)}if(!sec)return;
+if(!a){
+ const month=cur(),[year,number]=month.split('-'),monthLabel=month?year+'년 '+Number(number)+'월':'',hasSales=!!index.byMonth.get(month)?.latest;
+ const message=month?(hasSales?'이전 확정월 자료가 없어 동일 수금 진행위치를 비교할 수 없습니다.':'선택한 기준월에 확인할 실적 자료가 없습니다.'):'기준월을 선택하세요.';
+ delete sec.dataset.trendViewMonth;
+ sec.innerHTML='<div class="head"><h3>운영 판단 · 이슈 레이더</h3><p role="status">'+(monthLabel?X(monthLabel)+' · ':'')+message+'</p></div>';
+ window.dispatchEvent(new Event('sf-radar-rendered'));
+ return;
+}
+const configuredMbo=mboValue(z,a.month),hasMbo=configuredMbo!=null&&String(configuredMbo).trim()!==''&&Number.isFinite(Number(configuredMbo));
+const closeSignal=hasMbo&&a.mbo===0&&!a.allClosed?'목표 0.0억':a.closeSignal;
+const basis=window.SFDataReliability?.periodBasis?.(window.__sfSharedMeta||{},a.month,a.salesLast)?.basis==='upload'?'업로드 기준':'실적 기준';const histText=a.hist.length?(a.hist[0].slice(2).replace('-','.')+'~'+a.hist.at(-1).slice(2).replace('-','.')):'-',forecastText=a.forecast==null?'-':W(a.forecast)+'억',rolloverNote=!a.allClosed&&a.boundary?.rolloverPotential>=.05e8?' · 300억 초과 예상 '+W(a.boundary.rolloverPotential)+'억 익월 이월 가능(추정)':'',closeSub=a.allClosed?(W(a.current)+'억 최종 · '+a.closedCount+'/'+KEY.length+' 업체 마감'+(hasMbo?' · MBO '+W(a.mbo)+'억'+(a.forecastRate!=null?' · '+PC(a.forecastRate):''):'')) : (hasMbo?(forecastText+' 예상 · MBO '+W(a.mbo)+'억'+(a.forecastRate!=null?' · '+PC(a.forecastRate):'')+rolloverNote):(forecastText+' 예상 · MBO 미입력'+rolloverNote)),needSub=a.allClosed?'전체 관리업체 마감완료 · 추가 예상 0.0억':(!hasMbo?'목표를 입력하면 필요 일평균을 표시합니다.':a.remain>0?('잔여 '+a.remainingBiz+'영업일 · 남은 '+W(a.remain)+'억'):'MBO 이상 달성'),recent3Text=a.recent3Months?.length?(a.recent3Months[0].slice(2).replace('-','.')+'~'+a.recent3Months.at(-1).slice(2).replace('-','.')):'-',recentSub=a.forecastVsRecent3!=null?((a.allClosed?'최종 마감은':'현재 예상마감은')+' 최근 3개월 평균의 '+PC(a.forecastVsRecent3)+' · '+recent3Text):'최근 3개 확정월 마감 평균',trendRange=a.displayHist?.length?(a.displayHist[0].slice(2).replace('-','.')+'~'+a.displayHist.at(-1).slice(2).replace('-','.')):'-',trendSub=(a.allClosed?'전체 업체 마감완료 · 현재 누계가 최종 마감값입니다.':'확정월 마감 · 현재 누계/예상 마감 · 3M 이동평균 · 최근3M/MBO 기준')+' · 확정월 전체 '+trendRange+(a.displayHist?.length>5?' · 좌우 스크롤':'');
+sec.innerHTML='<div class="head"><div><h3>운영 판단 · 이슈 레이더</h3><p>월마감 가능성과 이상 징후를 먼저 확인한 뒤 아래 업체 → 제품군 → SKU로 내려갑니다. <span class="sf-radar-note">비교기준 '+histText+' 확정월 · 동일 수금 진행위치 · '+basis+' '+a.last+(a.salesLast&&a.salesLast!==a.last?' · 실적 '+a.salesLast+'까지':'')+'</span></p></div></div><div class="sf-radar-kpis"><div class="sf-radar-kpi"><div class="k">월마감 전망</div><div class="v '+toneClass(a.closeTone)+'">'+closeSignal+'</div><div class="s">'+closeSub+'</div></div><div class="sf-radar-kpi"><div class="k">남은 MBO</div><div class="v '+(hasMbo?(a.remain>0?'sf-radar-warn':'sf-radar-good'):'')+'">'+(hasMbo?W(a.remain)+'억':'목표 미입력')+'</div><div class="s">현재 '+W(a.current)+'억'+(hasMbo?' / 목표 '+W(a.mbo)+'억':'')+'</div></div><div class="sf-radar-kpi"><div class="k">잔여 영업일 필요 일평균</div><div class="v '+(a.allClosed?'sf-radar-closed':hasMbo?(a.remain>0?(a.remainingBiz===0?'sf-radar-bad':'sf-radar-warn'):'sf-radar-good'):'')+'">'+(hasMbo?W(a.needDaily)+'억':'목표 미입력')+'</div><div class="s">'+needSub+'</div></div><div class="sf-radar-kpi"><div class="k">최근 3개월 마감 평균</div><div class="v">'+W(a.recent3CloseAvg)+'억</div><div class="s">'+recentSub+'</div></div></div><div class="sf-radar-trend"><div class="sf-radar-trend-head"><div><b>월 마감 추세 · 현재/예상 포지션</b><span>'+trendSub+'</span></div><span class="sf-radar-trend-state '+(a.allClosed?'done':'live')+'">'+(a.allClosed?'마감 확정':'진행 중')+'</span></div>'+trendSvg(a,index)+'</div><div class="sf-radar-grid"><div class="sf-radar-box"><h4>관리업체 전체 현황 · 8개</h4><p>이슈 유무와 관계없이 8개 관리업체를 모두 표시합니다. 업체명을 누르면 2단계로 이동합니다.</p><div class="sf-radar-scroll">'+vendorTable(a.vendorStatus)+'</div></div><div class="sf-radar-box"><h4>제품군 이슈 · '+a.groupIssues.length+'건</h4><p>동일 진행위치 대비 변화와 금액 영향도를 반영하며, 모든 이슈 제품군을 스크롤로 확인합니다.</p><div class="sf-radar-scroll">'+issueTable(a.groupIssues)+'</div></div></div>';const trendScroll=sec.querySelector('.sf-radar-trend-scroll');if(trendScroll&&sec.dataset.trendViewMonth!==a.month){sec.dataset.trendViewMonth=a.month;requestAnimationFrame(()=>{trendScroll.scrollLeft=trendScroll.scrollWidth})}window.dispatchEvent(new Event('sf-radar-rendered'))}
 function schedule(ms=40){clearTimeout(renderTimer);renderTimer=setTimeout(render,ms)}
 document.addEventListener('click',e=>{const vb=e.target.closest('[data-radar-vendor]');if(vb){window.dispatchEvent(new CustomEvent('sf-radar-vendor-select',{detail:{vendor:vb.dataset.radarVendor||''}}));setTimeout(()=>$('#groupTable')?.closest('section.panel')?.scrollIntoView({behavior:'smooth',block:'start'}),60);return}const gb=e.target.closest('[data-radar-group]');if(gb){const g=gb.dataset.radarGroup||'';window.dispatchEvent(new CustomEvent('sf-radar-vendor-select',{detail:{vendor:''}}));setTimeout(()=>{window.__sfPopulateSkuGroups?.();const s=$('#v51Group');if(s){if(![...s.options].some(o=>o.value===g)){const o=document.createElement('option');o.value=g;o.textContent=g;s.appendChild(o)}s.value=g;s.dispatchEvent(new Event('change',{bubbles:true}))}$('#v51CompareTable')?.closest('section.panel')?.scrollIntoView({behavior:'smooth',block:'start'})},80)}},true);
 document.addEventListener('change',e=>{if(e.target?.id==='month')schedule(60)});
-window.addEventListener('sf-settings-committed',()=>schedule(40));window.addEventListener('sf-data-refreshed',()=>{dataCache=null;dataSig='';schedule(20)});
+window.addEventListener('sf-settings-committed',()=>schedule(40));window.addEventListener('sf-data-refreshed',()=>{dataCache=null;schedule(20)});
 window.addEventListener('sf-core-ready',()=>schedule(80));
 window.addEventListener('sf-v61-ready',()=>schedule(100));
 window.addEventListener('sf-vendor-close-change',()=>schedule(80));

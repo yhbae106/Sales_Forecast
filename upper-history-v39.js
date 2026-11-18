@@ -49,14 +49,14 @@ function comparisonCells(x){
  const title=x.expected==null?'비교 가능한 기준일 정보가 없습니다.':x.expected>0?'진행월 누계 ÷ 과거 확정월 동일 수금 진행위치 평균 누계':'동일 진행위치 과거 매출이 없어 달성률을 판정하지 않습니다.';
  return`<td class="v39-benchmark">${x.expected==null?'—':W(x.expected)}</td><td class="${deltaTone(x.prevDiff)} v39-comparison">${signed(x.prevDiff)}</td><td class="${deltaTone(x.avgDiff)} v39-comparison">${signed(x.avgDiff)}</td><td class="${tone(x.rate)}" title="${title}">${RB(x.rate)}</td>`;
 }
-function row(region,v,cur,hist,show,pace,cls=''){const x=metrics(v,cur,hist,show,pace),sel=upperVendor===v?' v39-selected':'';return`<tr class="${cls}v39-click${sel}" data-v39="${X(v)}"><td>${X(region)}</td><td>${X(v)}</td>${show.map(m=>`<td>${W(x.months[m])}</td>`).join('')}<td>${W(x.avg)}</td><td class="v39-current">${W(x.now)}</td>${comparisonCells(x)}</tr>`}
+function row(region,v,cur,hist,show,pace,cls=''){const x=metrics(v,cur,hist,show,pace),sel=upperVendor===v?' v39-selected':'';return`<tr class="${cls}v39-click${sel}" data-v39="${X(v)}"><td>${X(region)}</td><td><button type="button" class="sf-vendor-drill" aria-pressed="${upperVendor===v}">${X(v)}</button></td>${show.map(m=>`<td>${W(x.months[m])}</td>`).join('')}<td>${W(x.avg)}</td><td class="v39-current">${W(x.now)}</td>${comparisonCells(x)}</tr>`}
 function renderVendor(){
  const t=$('#vendorTable'),cur=active();if(!t||!cur)return;const ms=monthList(),hist=ms.filter(m=>m<cur),show=hist;if(!ms.length)return;
  const pace=paceContext(cur,hist);let body='';
  KEY.forEach((kv,i)=>{body+=row(kv[0],kv[1],cur,hist,show,pace);if(i===3)body+=row('백제약품 전체 합계','백제약품 전체 합계',cur,hist,show,pace,'subtotal ')});
  body+=row('권역 외 업체','권역 외 업체',cur,hist,show,pace,'subtotal ');
  const total=metrics('',cur,hist,show,pace);
- body+=`<tr class="v39-overview" data-v39-reset="1"><td>총합계</td><td><span class="v39-cta">↺ 전체 현황 보기</span></td>${show.map(m=>`<td>${W(amount('',m))}</td>`).join('')}<td>${W(total.avg)}</td><td class="v39-current">${W(total.now)}</td>${comparisonCells(total)}</tr>`;
+ body+=`<tr class="v39-overview" data-v39-reset="1"><td>총합계</td><td><button type="button" class="v39-cta">전체 업체 보기</button></td>${show.map(m=>`<td>${W(amount('',m))}</td>`).join('')}<td>${W(total.avg)}</td><td class="v39-current">${W(total.now)}</td>${comparisonCells(total)}</tr>`;
  t.classList.add('v39-history');t.dataset.v39=cur;
  t.style.setProperty('--v39-min-width',Math.max(1350,850+show.length*88)+'px');
  const mm=String(Number(cur.slice(5,7)))+'월',dateLabel=pace.asOf?pace.asOf.replaceAll('-','.'):'확인 필요';

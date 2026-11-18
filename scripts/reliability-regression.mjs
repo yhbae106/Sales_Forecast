@@ -142,24 +142,110 @@ await test('service worker retires only owned caches and never intercepts data o
   assert.deepEqual(deleted,['scm-sales-forecast-pwa-v120','sales-forecast-static-old']);assert.ok(claimed);
 });
 function bootstrapRuntime(request,{local={},expected=null}={}){
-  const values=storage({sales_forecast_v16:JSON.stringify(local)}),session=storage(expected?{sales_forecast_expected_shared_v98:JSON.stringify(expected)}:{}),nodes={'#status':{},'#asof':{}},loaded=[];
-  let view={kind:'loading',shared:null};
-  const window={SFDataReliability:{...R,requestJson:request,setView:update=>view={...view,...update},getView:()=>view},SEED_DATA:{dailyRecords:[{date:'2026-04-01',vendor:'A',amount:80}]},addEventListener:()=>{},dispatchEvent:()=>{},__sfLoadScript:async src=>{loaded.push(src);},__sfShowLoadError:message=>{throw new Error(message)}};
-  const document={querySelector:selector=>nodes[selector]||null,documentElement:{dataset:{}}};
-  const context=vm.createContext({window,document,localStorage:values,sessionStorage:session,Storage:class{},AbortController,Event,Date,setTimeout:()=>0,setInterval,clearInterval});
+  const values=storage({sales_forecast_v16:JSON.stringify(local)}),session=storage(expected?{sales_forecast_expected_shared_v98:JSON.stringify(expected)}:{}),nodes={},loaded=[];
+  const element=tag=>{
+    const children=[];
+    return {tag,dataset:{},textContent:'',children,
+      appendChild(child){children.push(child);return child;},
+      append(...items){children.push(...items);},
+      replaceChildren(...items){children.splice(0,children.length,...items);},
+      querySelector(selector){return children.find(child=>child.tag===selector)||null;},
+      insertAdjacentElement(position,child){nodes['#'+child.id]=child;}
+    };
+  };
+  for(const id of ['status','asof','month'])nodes['#'+id]=element(id==='month'?'select':'div');
+  const listeners={};
+  const document={head:element('head'),createElement:element,getElementById:id=>nodes['#'+id]||null,querySelector:selector=>nodes[selector]||null,documentElement:{dataset:{}},addEventListener(type,fn){listeners['document:'+type]=fn;}};
+  const window={document,SEED_DATA:{dailyRecords:[{date:'2026-04-01',vendor:'A',amount:80}]},
+    addEventListener(type,fn){(listeners[type]||=[]).push(fn);},
+    dispatchEvent(event){for(const listener of listeners[event.type]||[])listener(event);},
+    __sfLoadScript:async src=>{loaded.push(src);},__sfShowLoadError:message=>{throw new Error(message)}
+  };
+  const context=vm.createContext({window,document,localStorage:values,sessionStorage:session,Storage:class{},AbortController,Event,Date,queueMicrotask,setTimeout:()=>0,setInterval,clearInterval});
+  vm.runInContext(fs.readFileSync(new URL('../data-reliability.js',import.meta.url),'utf8'),context);
+  window.SFDataReliability.requestJson=request;
   const source=fs.readFileSync(new URL('../bootstrap-v36.js',import.meta.url),'utf8').replace('(async()=>{\n  setBrand()','window.__bootstrapDone=(async()=>{\n  setBrand()');
   vm.runInContext(source,context);
-  return{window,nodes,loaded,local:values,session,view:()=>view};
+  return{window,nodes,loaded,local:values,session,view:()=>window.SFDataReliability.getView(),async month(value){
+    nodes['#month'].value=value;listeners['document:change']({target:{id:'month'}});await Promise.resolve();
+  }};
 }
 await test('real bootstrap falls back after raw failure and retains authoritative empty settings',async()=>{
   let requests=0;const shared=fixture();shared.mbo={};
   const runtime=bootstrapRuntime(async()=>{if(++requests===1)throw new Error('raw unavailable');return shared;},{local:{mbo:{'2026-10':999}}});
   await runtime.window.__bootstrapDone;
-  assert.equal(requests,2);assert.equal(runtime.view().kind,'live');assert.equal(runtime.window.__SF_DISPLAY_DATE,'2026-10-21');assert.match(runtime.nodes['#asof'].textContent,/10\/21 업로드 기준/);assert.deepEqual(JSON.parse(runtime.local.getItem('sales_forecast_v16')).mbo,{});
+  assert.equal(requests,2);assert.equal(runtime.view().kind,'live');assert.equal(runtime.window.__SF_DISPLAY_DATE,'2026-10-21');assert.equal(runtime.nodes['#asof'].textContent,'2026-10-21 업로드 기준');assert.deepEqual(JSON.parse(runtime.local.getItem('sales_forecast_v16')).mbo,{});
 });
 await test('real bootstrap preserves a visible stale-cache state when both sources fail',async()=>{
   const runtime=bootstrapRuntime(async()=>{throw new Error('offline')},{local:{up:fixture().uploads}});await runtime.window.__bootstrapDone;
   assert.equal(runtime.view().kind,'cached');assert.equal(runtime.window.__sfSharedMeta,undefined);assert.match(runtime.nodes['#status'].textContent,/최신 공용 자료 확인에 실패/);assert.equal(runtime.window.__SF_DISPLAY_DATE,'2026-10-20');
+});
+await test('read status, data proof and as-of badge use the same selected month while operational messages survive',async()=>{
+  const runtime=bootstrapRuntime(async()=>fixture());
+  await runtime.window.__bootstrapDone;
+  await runtime.month('2026-10');
+  const badge=runtime.nodes['#asof'],status=runtime.nodes['#status'],proof=runtime.nodes['#sfDataProof'];
+  assert.equal(badge.textContent,'2026-10-21 업로드 기준');
+  assert.match(status.textContent,/공용 자료 확인 완료.*2026-10-21 업로드 기준.*마지막 실적 2026-10-20/);
+  await runtime.month('2026-04');
+  assert.equal(badge.textContent,'2026-04-01 실적 기준');
+  assert.match(status.textContent,/2026-04-01 실적 기준/);assert.equal(proof.querySelector('summary').textContent,'원본·산정 기준');assert.equal(proof.querySelector('div').children[0].textContent,'2026-04-01 실적 기준');
+  assert.ok(proof.querySelector('div').children.some(p=>p.textContent.includes('300억 원')));
+  await runtime.month('2025-03');assert.match(badge.textContent,/2025-03 실적 없음/);assert.match(status.textContent,/2025-03 실적 없음/);
+  const reliability=runtime.window.SFDataReliability;
+  for(const [saveState,message] of [['','일자별 매출 파일 확인 중...'],['saving','공용 설정 저장 중...'],['error','업로드 오류: 파일 확인 필요']]){
+    status.textContent=message;reliability.setView({saveState});await runtime.month('2026-10');assert.equal(status.textContent,message);
+  }
+  assert.match(proof.querySelector('summary').textContent,/저장 확인 필요/);
+});
+await test('legacy source with no recorded upload date uses the sales cutoff label',()=>{
+  const shared={uploads:[row()],sourceFiles:[{lastDate:'2026-10-20',fileName:'매출.xlsx'}]};
+  assert.equal(R.periodBasis(shared,'2026-10','2026-10-20').basis,'sales');
+  shared.sourceFiles[0].uploadedAt='2026-10-20T15:30:00Z';
+  assert.equal(R.periodBasis(shared,'2026-10','2026-10-20').asOf,'2026-10-21');
+  assert.equal(R.periodBasis(shared,'2026-10','2026-10-20').basis,'upload');
+});
+await test('failed shared read without a cached copy shows the seed cutoff and an explicit failed read',async()=>{
+  const runtime=bootstrapRuntime(async()=>{throw new Error('network offline');});
+  await runtime.window.__bootstrapDone;await runtime.month('2026-04');
+  assert.equal(runtime.view().kind,'unavailable');
+  assert.equal(runtime.nodes['#asof'].textContent,'2026-04-01 실적 기준');
+  assert.match(runtime.nodes['#status'].textContent,/내장 기준자료.*최신 공용 자료 확인에 실패.*2026-04-01/);
+  assert.match(runtime.nodes['#sfDataProof'].querySelector('summary').textContent,/최신 공용 자료 확인에 실패/);
+});
+await test('period labels follow replacement headers, sort arrows, selection and delayed custom text without watching table bodies',()=>{
+  const header=text=>({textContent:text,dataset:{}});
+  const makeHead=items=>({rows:[{cells:items.map(header)}]});
+  const vendor={tHead:makeHead(['25.12','26.02','확정월 평균 ↕','진행월 현재 ▲']),closest:()=>null};
+  const group={tHead:makeHead(['직전월 대비 현재 증감 ▼']),closest:()=>null};
+  const month={value:'2026-03'},subtitle={textContent:''},body={},nodes={month,vendorTable:vendor,groupTable:group};
+  const events={},frames=[],watched=new Map();
+  let changed;
+  class Observer{
+    constructor(callback){changed=callback;}
+    observe(node,options){watched.set(node,options);}
+    disconnect(){watched.clear();}
+  }
+  const document={body,getElementById:id=>nodes[id]||null,querySelector:s=>s==='.top .muted'?subtitle:nodes[s.slice(1)]||null,addEventListener:(event,fn)=>events['doc-'+event]=fn};
+  const window={__SF_UI_TEXT:{'dashboard.subtitle':'영업팀 · 당월 · 확정월 평균'},addEventListener:(event,fn)=>events[event]=fn};
+  const context=vm.createContext({document,window,MutationObserver:Observer,requestAnimationFrame:fn=>frames.push(fn)});
+  vm.runInContext(fs.readFileSync(new URL('../month-labels-v112.js',import.meta.url),'utf8'),context);
+  const flush=()=>{assert.equal(frames.length,1);frames.shift()();};
+  flush();
+  assert.equal(vendor.tHead.rows[0].cells[2].textContent,'25.12~26.02 평균 (2개월) ↕');
+  assert.equal(group.tHead.rows[0].cells[0].textContent,'2월 대비 3월 증감 ▼');
+  assert.equal(subtitle.textContent,'영업팀 · 3월 · 25.12~26.02 평균 (2개월)');
+  assert.equal(watched.has(body),false);assert.equal(watched.get(vendor).subtree,undefined);assert.equal(watched.has(vendor.tHead),true);
+  const oldHead=vendor.tHead;
+  vendor.tHead=makeHead(['26.01','26.02','확정월 평균 ▲']);changed();flush();
+  assert.equal(watched.has(oldHead),false);assert.equal(watched.has(vendor.tHead),true);
+  const avg=vendor.tHead.rows[0].cells[2];assert.equal(avg.textContent,'1~2월 평균 ▲');
+  avg.textContent='1~2월 평균 ▼';changed();flush();assert.equal(avg.textContent,'1~2월 평균 ▼');
+  month.value='2026-04';events['doc-change']({target:{id:'month'}});flush();
+  assert.equal(group.tHead.rows[0].cells[0].textContent,'2월 대비 4월 증감 ▼');
+  window.__SF_UI_TEXT['dashboard.subtitle']='맞춤 기준 · 당월';events['sf-ui-text-updated']();flush();
+  assert.equal(subtitle.textContent,'맞춤 기준 · 4월');
+  subtitle.textContent='맞춤 기준 · 당월';changed();flush();assert.equal(subtitle.textContent,'맞춤 기준 · 4월');
 });
 await test('an older post-upload source cannot clear the expected saved version',async()=>{
   const expected={updatedAt:'2026-10-22T01:00:00Z',month:'2026-10',last:'2026-10-21',total:150};
