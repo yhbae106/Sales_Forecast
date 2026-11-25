@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 const root = new URL('../', import.meta.url);
 const read = file => readFileSync(new URL(file, root), 'utf8');
 const modules = [
-  'data-reliability.js', 'bootstrap-v36.js', 'v16-legacy.js', 'shared-v31.js',
+  'sales-pace.js', 'data-reliability.js', 'bootstrap-v36.js', 'v16-legacy.js', 'shared-v31.js',
   'master-upload-v34.js', 'upload-diff-v99.js', 'kpi-layout-v37.js',
   'upper-history-v39.js', 'vendor-mbo-gap-v43.js', 'vendor-close-ui-v67.js',
   'boundary-forecast-v113.js', 'forecast-progress-v81.js', 'group-info-no-mbo-v82.js',

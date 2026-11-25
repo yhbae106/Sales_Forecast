@@ -16,6 +16,7 @@ function runtime({input='',finalReady=false}={}){
   const window={SEED_DATA:{dailyRecords:source},__SF_NO_MBO_FINAL_V88:finalReady,addEventListener:(name,fn)=>(listeners[name]||(listeners[name]=[])).push(fn)};
   const document={querySelector:s=>nodes[s]||null,addEventListener:()=>{},createElement:()=>({}),head:{appendChild:()=>{}}};
   const context=vm.createContext({window,document,localStorage:{getItem:()=>null,setItem:()=>assert.fail('Display renderer must not save data')},setTimeout:(fn,ms)=>{timers.push({fn,ms});return timers.length;},clearTimeout:()=>{},setInterval:()=>1,clearInterval:()=>{},requestAnimationFrame:fn=>fn()});
+  vm.runInContext(read('sales-pace.js'),context);
   return{nodes,table,window,context,panelText,timers,load:name=>vm.runInContext(read(name),context),flush:()=>{let i=0;while(timers.length){assert.ok(++i<100,'timer queue must settle');timers.shift().fn();}}};
 }
 

@@ -75,5 +75,19 @@ html.sf-booting #cards .value{color:#7892a7}.sf-legacy-help{display:none}
   #groupTable th:first-child,#groupTable td:first-child,#groupTargetTable th:first-child,#groupTargetTable td:first-child,#v51CompareTable th:first-child,#v51CompareTable td:first-child{min-width:115px;max-width:145px;overflow-wrap:anywhere;white-space:normal}
   #sfSectionNav button{min-height:40px}#sfSettings>summary,#sfKpiDetails{min-height:38px;align-content:center}
 }
+@media(max-width:650px){
+  main.wrap>.top{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 8px;margin-bottom:10px!important}
+  main.wrap>.top>div:first-child{display:contents}
+  main.wrap>.top .eyebrow,main.wrap>.top h1,main.wrap>.top .muted{grid-column:1/-1}
+  main.wrap>.top h1{margin:2px 0;font-size:clamp(19px,5vw,23px)!important;line-height:1.2}
+  main.wrap>.top .muted{line-height:1.4}
+  main.wrap>.top #asof{grid-column:1;grid-row:4;justify-self:start;max-width:100%;white-space:normal}
+  main.wrap>.top .top-actions{grid-column:2;grid-row:4;justify-content:flex-end;margin:0}
+  #sfControls .sf-query-controls{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:3px 8px}
+  #sfControls .sf-month{gap:5px}
+  #sfControls .sf-query-controls:has(#sfSettings[open]){grid-template-columns:minmax(0,1fr)}
+  #sfControls #sfSettings>summary{font-size:12px;line-height:1.35}
+  #sfControls{margin-bottom:8px!important}
+}
 @media(max-width:355px){#sfSettings .sf-settings-fields{grid-template-columns:1fr}#cards .card[data-kpi-key]{padding:10px!important}#cards .card .value{font-size:21px!important}}
 @media print{#sfKpiDetails,#sfLoaderV74,.sf-month~details>summary{display:none!important}#cards .card[data-kpi-key],#cards~#kpiFlowSummary{display:block!important}#sfControls,#cards{break-inside:avoid}}

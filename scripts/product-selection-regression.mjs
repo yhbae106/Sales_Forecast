@@ -102,6 +102,7 @@ function fixture(initial = {}) {
     while(timers.size&&--limit){const [id,item]=[...timers].sort((a,b)=>a[1].at-b[1].at)[0];timers.delete(id);clock=item.at;item.fn();}
     assert.ok(limit>0,'events/timers must settle without a feedback loop');
   };
+  vm.runInContext(source('sales-pace.js'),context);
   vm.runInContext(source('detail-shell-v61.js'),context,{filename:'detail-shell-v61.js'});
   vm.runInContext(source('unified-final-v73.js'),context,{filename:'unified-final-v73.js'});
   flush();

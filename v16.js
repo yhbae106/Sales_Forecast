@@ -47,7 +47,7 @@
     }
     return requests.get(src);
   };
-  window.__sfLoadScript('data-reliability.js?v=' + V)
+  Promise.all([window.__sfLoadScript('sales-pace.js?v=' + V), window.__sfLoadScript('data-reliability.js?v=' + V)])
     .then(() => window.__sfLoadScript('bootstrap-v36.js?v=' + V))
     .catch(error => window.__sfShowLoadError(error.message));
 })();
