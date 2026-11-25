@@ -34,6 +34,7 @@ function loadRuntime(dir,seed,initial){
   });
   const set=(state,key=storeKey)=>stored.set(key,JSON.stringify(state));
   if(initial)set(initial);
+  vm.runInContext(read(root,'sales-pace.js'),context);
   vm.runInContext(read(root,'data-reliability.js'),context);
   vm.runInContext(read(root,'boundary-forecast-v113.js'),context);
   const inject=(file,body)=>{

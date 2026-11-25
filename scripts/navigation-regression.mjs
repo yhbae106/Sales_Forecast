@@ -51,6 +51,7 @@ test('SKU shortcut scrolls and transfers keyboard focus while respecting reduced
 function exporter(){
   const window={},document={querySelector:()=>null,querySelectorAll:()=>[],getElementById:()=>null,head:{appendChild:()=>{}},createElement:()=>({}),body:{}};
   const source=read('export-v21.js').replace(/\n\}\)\(\);\s*$/,'\nwindow.testTableAOA=tableAOA;\n})();');
+  vm.runInNewContext(read('sales-pace.js'),{window});
   vm.runInNewContext(source,{window,document,MutationObserver:class{observe(){}},setTimeout:()=>1,clearTimeout:()=>{}});
   return window.testTableAOA;
 }
@@ -62,5 +63,11 @@ test('Excel uses the visible product search result and retains numeric cells',()
 test('collapsed SKU vendor details are still included in Excel',()=>{
   const result=exporter()({rows:[row('SKU 소계'),row('접힌 업체 상세',true)]});
   assert.equal(result.length,2);assert.equal(result[1][0],'접힌 업체 상세');
+});
+test('Excel reads an unrounded rate and leaves a missing benchmark empty',()=>{
+  const cells=[{innerText:'(100.0%)',dataset:{sfRate:'0.9996'}},{innerText:'—',dataset:{sfRate:''}}];
+  const [data]=exporter()({rows:[{dataset:{},cells}]});
+  assert.equal(data[0],.9996*100);
+  assert.equal(data[1],null);
 });
 console.log(`Navigation and export regressions passed (${checks} scenarios).`);

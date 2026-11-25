@@ -212,7 +212,7 @@ for(const field of ['기준일 기대 누계','전월 동일시점 대비 증감
  if(!upperHistory.includes(field))fail('vendor table missing same-stage comparator: '+field);
 }
 if(!upperHistory.includes("sourceAsOfDate(window.__sfSharedMeta||{},cur,last)")||!upperHistory.includes("rate=expected>0?now/expected:null"))fail('vendor sales rate must use the upload-date same-stage expected cumulative, not whole-month average');
-if(!upperHistory.includes("v39-rate-good':'v39-rate-bad")||!upperHistory.includes("v39-rate-neutral"))fail('vendor pace colors must be good, bad, or neutral only');
+if(!upperHistory.includes("SFSalesPace.cell(x.rate,'vendor'"))fail('vendor table must use the shared pace renderer');
 if(upperHistory.includes('rate:avg?now/avg:0'))fail('vendor pace must not use full-month average in rate');
 
 
@@ -352,7 +352,7 @@ ok('master text editor, stable KPI keys, and shared uiText persistence guards pr
 
 const visualPolish = read('visual-polish-v74.js');
 if (!upperHistory.includes('sf-ratebar')) fail('stage-one vendor table is missing visual rate bars');
-if (!unified.includes('sf-ratebar')) fail('product/SKU tables are missing visual rate bars');
+if (!unified.includes('SFSalesPace.cell') || !read('sales-pace.js').includes('sf-ratebar')) fail('product/SKU tables are missing visual rate bars');
 if (!visualPolish.includes('content-visibility:auto')) fail('below-the-fold panels are not using deferred paint');
 if (!finalLayout.includes("'sf-defer-render'")) fail('lower analysis panels are not marked for deferred paint');
 if (!visualPolish.includes('#vendorTable th:nth-child(2)')) fail('wide vendor table is missing sticky identity columns');
